@@ -461,6 +461,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                   );
                 })}
               </div>
+            </div>
             <div className="flex-1 overflow-y-auto overscroll-contain bg-[#191c26] border-t border-white/[0.07]">
               <OrderPanel {...orderPanelProps} compact />
             </div>
