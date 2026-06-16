@@ -372,19 +372,19 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             <div className="relative">
               <button
                 onClick={() => setAccountDropdown((v) => !v)}
-                className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-[#1c2030] border border-white/[0.07] hover:border-white/20 transition min-h-[44px]"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#1c2030] border border-white/[0.07] hover:border-white/20 transition min-h-[40px] max-w-[160px] sm:max-w-[200px]"
               >
-                {/* Flag - circular */}
-                <span className="w-8 h-8 rounded-full bg-[#1a1f35] border border-white/10 flex items-center justify-center text-base leading-none shrink-0">🇺🇸</span>
-                <div className="text-left">
-                  <div className="text-xs sm:text-sm font-bold tabular-nums leading-tight">
+                {/* Flag - circular, smaller */}
+                <span className="w-6 h-6 rounded-full bg-[#1a1f35] border border-white/10 flex items-center justify-center text-xs leading-none shrink-0">🇺🇸</span>
+                <div className="text-left min-w-0">
+                  <div className="text-[11px] sm:text-xs font-bold tabular-nums leading-tight truncate">
                     ${displayBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <div className="text-[9px] text-gray-500 leading-tight">
                     {accountMode === "real" ? "Real" : "Demo"}
                   </div>
                 </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${accountDropdown ? "rotate-180" : ""}`} />
+                <ChevronDown className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${accountDropdown ? "rotate-180" : ""}`} />
               </button>
 
               {/* Account switcher dropdown */}
