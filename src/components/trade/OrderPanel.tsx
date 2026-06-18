@@ -135,6 +135,13 @@ export function OrderPanel({
   const [sessionWins, setSessionWins] = useState(0);
   const [lastProcessedId, setLastProcessedId] = useState<string | null>(null);
   const [sessionResult, setSessionResult] = useState<"target" | "stop" | null>(null);
+  const [showInsufficientPopup, setShowInsufficientPopup] = useState(false);
+
+  useEffect(() => {
+    if (!showInsufficientPopup) return;
+    const t = setTimeout(() => setShowInsufficientPopup(false), 2500);
+    return () => clearTimeout(t);
+  }, [showInsufficientPopup]);
 
   const multiplier = MULTIPLIER_OPTIONS[multiplierIdx];
 
@@ -151,9 +158,9 @@ export function OrderPanel({
     setSessionTrades(newTrades);
     setSessionWins(newWins);
 
-    if (targetEnabled && newPnl >= targetProfit) {
+    if (tradeMode === "auto" && targetEnabled && newPnl >= targetProfit) {
       setSessionResult("target");
-    } else if (stopEnabled && newPnl <= -stopLoss) {
+    } else if (tradeMode === "auto" && stopEnabled && newPnl <= -stopLoss) {
       setSessionResult("stop");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,6 +203,10 @@ export function OrderPanel({
 
   const handleTrade = (direction: "up" | "down") => {
     if (sessionBlocked) return;
+    if (stake > balance) {
+      setShowInsufficientPopup(true);
+      return;
+    }
     const [upLabel, downLabel] = getLabels();
     onPlaceTrade(direction, {
       digit: showDigits ? selectedDigit : undefined,
@@ -206,8 +217,31 @@ export function OrderPanel({
 
   const [upLabel, downLabel] = getLabels();
   const [upColor, downColor] = getColors();
-  const btnBase = "h-12 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed";
+  const btnBase = "rounded-xl font-bold text-white text-sm flex items-center justify-center transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed";
   const winRate = sessionTrades > 0 ? (sessionWins / sessionTrades) * 100 : 0;
+
+  // Probability-weighted payout per direction, like TagBinary's Match/Differ split
+  // (rare outcome pays much more, common outcome pays close to break-even)
+  const getPayoutSplit = (): { upPct: number; downPct: number } => {
+    switch (contractType) {
+      case "Match/Differ": return { upPct: 850, downPct: 5 };   // Match = 1/10 chance, Differ = 9/10
+      case "Even/Odd":     return { upPct: 95, downPct: 95 };    // ~50/50, flat payout
+      case "Over/Under": {
+        // Over/Under odds shift depending on which digit is selected (0-9 split point)
+        const overChance = (9 - selectedDigit) / 9 || 0.01;
+        const underChance = (selectedDigit + 1) / 9 || 0.01;
+        return {
+          upPct: Math.min(950, Math.round((1 / overChance) * 95 * 10) / 10),
+          downPct: Math.min(950, Math.round((1 / underChance) * 95 * 10) / 10),
+        };
+      }
+      default: return { upPct: selectedAsset.payout, downPct: selectedAsset.payout }; // Rise/Fall
+    }
+  };
+
+  const { upPct, downPct } = getPayoutSplit();
+  const upPayout = stake * (1 + upPct / 100);
+  const downPayout = stake * (1 + downPct / 100);
 
   return (
     <div className={`flex flex-col gap-0 relative ${compact ? "" : "h-full"}`}>
@@ -258,25 +292,27 @@ export function OrderPanel({
         </div>
       </div>
 
-      {/* ── Risk controls ── */}
-      <div className="px-3 pt-2 pb-2 border-b border-white/[0.06]">
-        <div className="grid grid-cols-3 gap-1.5">
-          <AdjustField label="Target profit" value={targetProfit} onChange={setTargetProfit} color="text-emerald-400" enabled={targetEnabled} onToggle={() => setTargetEnabled((v) => !v)} />
-          <AdjustField label="Stop loss" value={stopLoss} onChange={setStopLoss} color="text-red-400" enabled={stopEnabled} onToggle={() => setStopEnabled((v) => !v)} />
-          <div className="bg-[#141822] rounded-xl p-2 border border-white/[0.06]">
-            <span className="text-[9px] text-amber-500/80 font-bold uppercase tracking-wide block mb-1">Multiplier</span>
-            <p className="text-amber-400 text-base font-bold mb-1.5">×{multiplier}</p>
-            <div className="flex gap-1">
-              <button onClick={() => setMultiplierIdx((i) => Math.max(0, i - 1))} className="flex-1 h-7 rounded-lg bg-white/[0.07] hover:bg-white/[0.15] active:scale-95 flex items-center justify-center transition">
-                <Minus className="w-3.5 h-3.5 text-gray-300" />
-              </button>
-              <button onClick={() => setMultiplierIdx((i) => Math.min(MULTIPLIER_OPTIONS.length - 1, i + 1))} className="flex-1 h-7 rounded-lg bg-white/[0.07] hover:bg-white/[0.15] active:scale-95 flex items-center justify-center transition">
-                <Plus className="w-3.5 h-3.5 text-gray-300" />
-              </button>
+      {/* ── Risk controls (Auto mode only) ── */}
+      {tradeMode === "auto" && (
+        <div className="px-3 pt-2 pb-2 border-b border-white/[0.06]">
+          <div className="grid grid-cols-3 gap-1.5">
+            <AdjustField label="Target profit" value={targetProfit} onChange={setTargetProfit} color="text-emerald-400" enabled={targetEnabled} onToggle={() => setTargetEnabled((v) => !v)} />
+            <AdjustField label="Stop loss" value={stopLoss} onChange={setStopLoss} color="text-red-400" enabled={stopEnabled} onToggle={() => setStopEnabled((v) => !v)} />
+            <div className="bg-[#141822] rounded-xl p-2 border border-white/[0.06]">
+              <span className="text-[9px] text-amber-500/80 font-bold uppercase tracking-wide block mb-1">Multiplier</span>
+              <p className="text-amber-400 text-base font-bold mb-1.5">×{multiplier}</p>
+              <div className="flex gap-1">
+                <button onClick={() => setMultiplierIdx((i) => Math.max(0, i - 1))} className="flex-1 h-7 rounded-lg bg-white/[0.07] hover:bg-white/[0.15] active:scale-95 flex items-center justify-center transition">
+                  <Minus className="w-3.5 h-3.5 text-gray-300" />
+                </button>
+                <button onClick={() => setMultiplierIdx((i) => Math.min(MULTIPLIER_OPTIONS.length - 1, i + 1))} className="flex-1 h-7 rounded-lg bg-white/[0.07] hover:bg-white/[0.15] active:scale-95 flex items-center justify-center transition">
+                  <Plus className="w-3.5 h-3.5 text-gray-300" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Simple digit target selector (plain, no %, tap to choose) ── */}
       {showDigits && (
@@ -347,15 +383,45 @@ export function OrderPanel({
 
       {/* ── CTA buttons ── */}
       <div className="px-3 pb-3 pt-2 grid grid-cols-2 gap-2.5">
-        <button onClick={() => handleTrade("up")} disabled={stake > balance || sessionBlocked} className={`${btnBase} ${upColor}`}>
-          {showDigits && <span className="w-6 h-6 rounded-full bg-white/20 text-xs font-bold flex items-center justify-center">{selectedDigit}</span>}
-          {upLabel}
+        <button onClick={() => handleTrade("up")} disabled={sessionBlocked} className={`${btnBase} ${upColor} flex-col gap-0.5 h-16`}>
+          <div className="flex items-center gap-1.5">
+            {showDigits && <span className="w-5 h-5 rounded-full bg-white/20 text-[11px] font-bold flex items-center justify-center">{selectedDigit}</span>}
+            <span>{upLabel}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold opacity-90">
+            <span>Payout ${upPayout.toFixed(2)}</span>
+            <span>{upPct.toFixed(1)}%</span>
+          </div>
         </button>
-        <button onClick={() => handleTrade("down")} disabled={stake > balance || sessionBlocked} className={`${btnBase} ${downColor}`}>
-          {showDigits && <span className="w-6 h-6 rounded-full bg-white/20 text-xs font-bold flex items-center justify-center">{selectedDigit}</span>}
-          {downLabel}
+        <button onClick={() => handleTrade("down")} disabled={sessionBlocked} className={`${btnBase} ${downColor} flex-col gap-0.5 h-16`}>
+          <div className="flex items-center gap-1.5">
+            {showDigits && <span className="w-5 h-5 rounded-full bg-white/20 text-[11px] font-bold flex items-center justify-center">{selectedDigit}</span>}
+            <span>{downLabel}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold opacity-90">
+            <span>Payout ${downPayout.toFixed(2)}</span>
+            <span>{downPct.toFixed(1)}%</span>
+          </div>
         </button>
       </div>
+
+      {/* ── Insufficient balance popup ── */}
+      {showInsufficientPopup && (
+        <div className="absolute bottom-20 left-3 right-3 z-50 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-rose-500/95 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-2xl flex items-center gap-2.5">
+            <XCircle className="w-5 h-5 text-white shrink-0" />
+            <div className="flex-1">
+              <p className="text-white text-sm font-bold">Insufficient balance</p>
+              <p className="text-white/80 text-[11px]">
+                You need ${stake.toFixed(2)} but only have ${balance.toFixed(2)} available
+              </p>
+            </div>
+            <button onClick={() => setShowInsufficientPopup(false)} className="text-white/70 hover:text-white text-xs font-bold px-1">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Target/Stop reached modal ── */}
       {sessionResult && (
