@@ -325,36 +325,50 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
       status: "open",
       isDemo,
     };
-    if (isAuthenticated) {
-      try {
-        const res = await fetch("/api/trades", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assetId: selectedAsset.id,
-            assetName: selectedAsset.name,
-            contractType,
-            direction,
-            stake,
-            payout,
-            expiry: newPosition.expiry,
-            openPrice: price,
-          }),
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setPositions((prev) => [...prev, { ...newPosition, id: data.trade?.id ?? newPosition.id }]);
-        setBalance((b) => b - stake);
-      } catch {
-        setTradeError("Failed to place trade");
-      }
-    } else {
+
+    if (isDemo) {
+      // Demo trades always run locally, even when signed in
       setPositions((prev) => [...prev, newPosition]);
-      setBalance((b) => b - stake);
+      setDemoBalance((b) => b - stake);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assetId: selectedAsset.id,
+          contractType: resolvedContractType,
+          direction,
+          stake,
+          durationMinutes: parseInt(duration, 10),
+          digit: meta?.digit,
+          digitDirection: meta?.digitDirection,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const message =
+          typeof errData?.error === "string"
+            ? errData.error
+            : errData?.error?.fieldErrors
+              ? Object.values(errData.error.fieldErrors).flat().join(", ") || "Failed to place trade"
+              : "Failed to place trade";
+        setTradeError(message);
+        return;
+      }
+      const data = await res.json();
+      setPositions((prev) => [...prev, { ...newPosition, id: data.trade?.id ?? newPosition.id }]);
+      setBalance((b) => (data.balance !== undefined ? data.balance : b - stake));
+    } catch (e) {
+      console.error("Trade network error:", e);
+      setTradeError("Network error — please try again");
     }
   };
 
-  const openCount = positions.filter((p) => p.status === "open").length;
+  const visiblePositions = positions.filter((p) => Boolean(p.isDemo) === (accountMode === "demo"));
+  const openCount = visiblePositions.filter((p) => p.status === "open").length;
 
   const orderPanelProps = {
     selectedAsset,
