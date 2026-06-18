@@ -166,7 +166,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
     const range = max - min || 1;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#0f1219";
+    ctx.fillStyle = "#070809";
     ctx.fillRect(0, 0, w, h);
 
     // Grid lines
@@ -402,17 +402,17 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 
   if (sessionStatus === "loading") {
     return (
-      <div className="min-h-screen bg-[#13161e] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0c12] flex items-center justify-center">
         <div className="w-10 h-10 border-[3px] border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-[#13161e] text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0a0c12] text-white flex flex-col overflow-hidden">
 
       {/* ── Header ── */}
-      <header className="shrink-0 border-b border-white/[0.07] bg-[#13161e]/95 backdrop-blur z-30">
+      <header className="shrink-0 border-b border-white/[0.07] bg-[#0a0c12]/95 backdrop-blur z-30">
         <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-14 sm:h-16 gap-2 max-w-screen-2xl mx-auto w-full">
 
           {/* Left: hamburger + wordmark */}
@@ -434,7 +434,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             <div className="relative">
               <button
                 onClick={() => setAccountDropdown((v) => !v)}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#1c2030] border border-white/[0.07] hover:border-white/20 transition min-h-[40px] max-w-[160px] sm:max-w-[200px]"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#141822] border border-white/[0.07] hover:border-white/20 transition min-h-[40px] max-w-[160px] sm:max-w-[200px]"
               >
                 {/* Flag - circular, smaller */}
                 <span className="w-6 h-6 rounded-full bg-[#1a1f35] border border-white/10 flex items-center justify-center text-xs leading-none shrink-0">🇺🇸</span>
@@ -453,7 +453,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
               {accountDropdown && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setAccountDropdown(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-64 rounded-2xl border border-white/[0.07] bg-[#1c2030] shadow-2xl z-50 overflow-hidden">
+                  <div className="absolute top-full right-0 mt-2 w-64 rounded-2xl border border-white/[0.07] bg-[#141822] shadow-2xl z-50 overflow-hidden">
                     {/* Real account */}
                     <button
                       onClick={() => { setAccountMode("real"); setAccountDropdown(false); }}
@@ -533,7 +533,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
       {navMenuOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setNavMenuOpen(false)} />
-          <aside className="fixed left-0 top-0 bottom-0 w-72 bg-[#13161e] border-r border-white/[0.07] z-50 flex flex-col">
+          <aside className="fixed left-0 top-0 bottom-0 w-72 bg-[#0a0c12] border-r border-white/[0.07] z-50 flex flex-col">
             <div className="flex items-center justify-between px-4 h-16 border-b border-white/[0.07]">
               <span className="text-base font-extrabold tracking-tight select-none">
                 <span className="text-[#3B82F6]">OPEN</span><span className="text-white">MARKET</span>
@@ -590,7 +590,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
       <div className="hidden md:flex flex-1 overflow-hidden min-h-0 max-w-screen-2xl mx-auto w-full">
 
         {/* Left: Positions — only visible on lg+ */}
-        <aside className="hidden lg:flex w-52 xl:w-64 2xl:w-72 border-r border-white/[0.07] flex-col shrink-0 bg-[#191c26]">
+        <aside className="hidden lg:flex w-52 xl:w-64 2xl:w-72 border-r border-white/[0.07] flex-col shrink-0 bg-[#0d0f17]">
           <PositionsPanel
             positions={visiblePositions}
             closedTab={closedTab}
@@ -603,7 +603,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         {/* Center: Chart */}
         <main className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Contract tabs */}
-          <div className="flex border-b border-white/[0.07] bg-[#13161e] shrink-0 overflow-x-auto scrollbar-hide">
+          <div className="flex border-b border-white/[0.07] bg-[#0a0c12] shrink-0 overflow-x-auto scrollbar-hide">
             {(["Matches/Differs", "Even/Odd", "Over/Under", "Rise/Fall"] as const).map((t) => {
               const mapped = t === "Matches/Differs" ? "Match/Differ" : t;
               const isActive = contractType === mapped;
@@ -631,7 +631,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           />
           <div
             ref={chartContainerRef}
-            className="flex-1 relative bg-[#0f1219] min-h-[180px] m-3 rounded-xl border border-white/[0.08] overflow-hidden"
+            className="flex-1 relative bg-[#070809] min-h-[180px] m-3 rounded-xl border border-white/[0.08] overflow-hidden"
           >
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
             {/* Desktop price ladder */}
@@ -657,7 +657,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           <LiveDigitTracker price={price} priceHistory={priceHistory} />
 
           {/* Positions strip — md only (tablet, no sidebar) */}
-          <div className="lg:hidden border-t border-white/[0.07] h-40 shrink-0 overflow-hidden bg-[#191c26]">
+          <div className="lg:hidden border-t border-white/[0.07] h-40 shrink-0 overflow-hidden bg-[#0d0f17]">
             <PositionsPanel
               positions={visiblePositions}
               closedTab={closedTab}
@@ -669,7 +669,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         </main>
 
         {/* Right: Order panel */}
-        <aside className="w-60 xl:w-72 2xl:w-80 border-l border-white/[0.07] flex flex-col shrink-0 bg-[#191c26] overflow-y-auto">
+        <aside className="w-60 xl:w-72 2xl:w-80 border-l border-white/[0.07] flex flex-col shrink-0 bg-[#0d0f17] overflow-y-auto">
           <OrderPanel {...orderPanelProps} />
         </aside>
       </div>
@@ -679,7 +679,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         {mobileTab === "trade" && (
           <>
             {/* Contract tabs */}
-            <div className="flex border-b border-white/[0.07] bg-[#13161e] shrink-0 overflow-x-auto scrollbar-hide snap-x">
+            <div className="flex border-b border-white/[0.07] bg-[#0a0c12] shrink-0 overflow-x-auto scrollbar-hide snap-x">
               {(["Matches/Differs", "Even/Odd", "Over/Under", "Rise/Fall"] as const).map((t) => {
                 const mapped = t === "Matches/Differs" ? "Match/Differ" : t;
                 const isActive = contractType === mapped;
@@ -710,8 +710,8 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             />
 
             {/* Chart card */}
-            <div className="px-2 sm:px-3 py-2 bg-[#13161e] shrink-0">
-              <div className="h-[22vh] sm:h-[28vh] min-h-[130px] max-h-[240px] relative bg-[#0f1219] rounded-xl border border-white/[0.08] overflow-hidden">
+            <div className="px-2 sm:px-3 py-2 bg-[#0a0c12] shrink-0">
+              <div className="h-[18vh] sm:h-[24vh] min-h-[120px] max-h-[200px] relative bg-[#070809] rounded-xl border border-white/[0.08] overflow-hidden">
                 <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
                 {/* Price ladder */}
                 <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-20 flex flex-col justify-around items-end pr-1.5 sm:pr-2 pointer-events-none">
@@ -737,14 +737,14 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             <LiveDigitTracker price={price} priceHistory={priceHistory} />
 
             {/* Scrollable order panel */}
-            <div className="flex-1 overflow-y-auto overscroll-contain bg-[#191c26] border-t border-white/[0.07]">
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-[#0d0f17] border-t border-white/[0.07]">
               <OrderPanel {...orderPanelProps} compact />
             </div>
           </>
         )}
 
         {mobileTab === "positions" && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#191c26]">
+          <div className="flex-1 flex flex-col min-h-0 bg-[#0d0f17]">
             <PositionsPanel
               positions={visiblePositions}
               closedTab={closedTab}
@@ -756,7 +756,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         )}
 
         {mobileTab === "ai" && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#191c26] px-6 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#0d0f17] px-6 text-center">
             <div className="w-16 h-16 rounded-full bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center">
               <Sparkles className="w-8 h-8 text-[#3B82F6]" />
             </div>
@@ -774,7 +774,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 
         {/* Bottom nav */}
         <nav
-          className="shrink-0 flex border-t border-white/[0.07] bg-[#13161e]"
+          className="shrink-0 flex border-t border-white/[0.07] bg-[#0a0c12]"
           style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           <button
@@ -791,7 +791,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] transition"
           >
             <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition ${
-              mobileTab === "ai" ? "bg-[#3B82F6]" : "bg-[#1c2030]"
+              mobileTab === "ai" ? "bg-[#3B82F6]" : "bg-[#141822]"
             }`}>
               <Sparkles className="w-5 h-5 text-white" />
             </div>
@@ -843,7 +843,7 @@ function LiveDigitTracker({ price, priceHistory }: { price: number; priceHistory
   const maxPct = Math.max(...percentages);
 
   return (
-    <div className="px-3 pt-3 pb-3 bg-[#13161e] border-b border-white/[0.07] shrink-0">
+    <div className="px-3 pt-3 pb-2.5 bg-[#0a0c12] border-b border-white/[0.06] shrink-0">
       <div className="relative">
         {/* Moving cursor arrow */}
         <div
@@ -862,15 +862,15 @@ function LiveDigitTracker({ price, priceHistory }: { price: number; priceHistory
                 <div
                   className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold border-2 transition-all ${
                     isCurrent
-                      ? "bg-[#3B82F6] border-[#3B82F6] text-white scale-110"
+                      ? "bg-[#3B82F6] border-[#3B82F6] text-white scale-110 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
                       : isHot
-                        ? "bg-emerald-900/30 border-emerald-500/60 text-emerald-300"
-                        : "bg-[#1c2030] border-white/10 text-gray-300"
+                        ? "bg-transparent border-emerald-500 text-emerald-400"
+                        : "bg-transparent border-white/15 text-gray-300"
                   }`}
                 >
                   {d}
                 </div>
-                <span className={`text-[9px] sm:text-[10px] font-semibold tabular-nums ${
+                <span className={`text-[9px] sm:text-[10px] font-bold tabular-nums ${
                   d === 0 ? "text-rose-400" : isCurrent ? "text-[#60a5fa]" : "text-gray-500"
                 }`}>
                   {pct.toFixed(1)}%
@@ -905,7 +905,7 @@ function ChartToolbar({
   compact?: boolean;
 }) {
   return (
-    <div className={`flex items-center justify-between border-b border-white/[0.07] bg-[#1c2030] shrink-0 ${
+    <div className={`flex items-center justify-between border-b border-white/[0.07] bg-[#141822] shrink-0 ${
       compact ? "px-3 py-2" : "px-4 py-2.5 lg:px-6"
     }`}>
       <div className="relative min-w-0 flex-1 mr-2">
@@ -931,7 +931,7 @@ function ChartToolbar({
         {assetDropdown && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setAssetDropdown(false)} />
-            <div className="absolute top-full left-0 mt-1 w-[min(100vw-2rem,20rem)] max-h-64 overflow-y-auto rounded-xl border border-white/[0.07] bg-[#1c2030] shadow-2xl z-50">
+            <div className="absolute top-full left-0 mt-1 w-[min(100vw-2rem,20rem)] max-h-64 overflow-y-auto rounded-xl border border-white/[0.07] bg-[#141822] shadow-2xl z-50">
               {ASSETS.map((a) => (
                 <button
                   key={a.id}
