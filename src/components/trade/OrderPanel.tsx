@@ -147,6 +147,10 @@ export function OrderPanel({
   const [autoMeta, setAutoMeta] = useState<{ digit?: number; contractType?: string; digitDirection?: string } | undefined>();
   const [liveTrades, setLiveTrades] = useState(0); // count of open auto trades
   const stopRequestedRef = useRef(false);
+  // Resolves the moment the *next* trade settlement arrives, so the auto-loop
+  // can wait on real settlement instead of guessing with a fixed timer —
+  // this is what makes target profit / stop loss actually strict.
+  const settlementWaiterRef = useRef<(() => void) | null>(null);
 
   // Insufficient balance popup
   const [showInsufficientPopup, setShowInsufficientPopup] = useState(false);
@@ -175,17 +179,31 @@ export function OrderPanel({
         stopRequestedRef.current = true;
         setAutoRunning(false);
         setSessionResult("target");
-        return;
-      }
-      if (stopEnabled && newPnl <= -stopLoss) {
+      } else if (stopEnabled && newPnl <= -stopLoss) {
         stopRequestedRef.current = true;
         setAutoRunning(false);
         setSessionResult("stop");
-        return;
       }
+    }
+
+    // Release the loop now that this trade's outcome — and the resulting
+    // stopRequestedRef state — is fully settled and accounted for.
+    if (settlementWaiterRef.current) {
+      const resolve = settlementWaiterRef.current;
+      settlementWaiterRef.current = null;
+      resolve();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastSettledProfit]);
+
+  // Resolves once the next settlement event fires (see effect above).
+  // The auto-loop calls this instead of a fixed setTimeout, so it can never
+  // place an extra trade before target/stop has been evaluated.
+  const waitForNextSettlement = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      settlementWaiterRef.current = resolve;
+    });
+  }, []);
 
   // Auto-loop engine: fires a new trade every ~1.1 seconds while running
   const runAutoLoop = useCallback(async (
@@ -217,13 +235,19 @@ export function OrderPanel({
       setLiveTrades((n) => n + 1);
       currentBalance -= currentStake;
 
-      // Wait ~1.2 seconds (1 tick + small buffer) before next trade
-      await new Promise<void>((resolve) => setTimeout(resolve, 1200));
+      // Wait for this exact trade to actually settle (price tick resolves it)
+      // before deciding whether to fire another — this is what makes target
+      // profit / stop loss strict instead of an approximate timer-based guess.
+      await waitForNextSettlement();
+
+      // stopRequestedRef may have just been flipped inside the settlement
+      // effect above (target/stop hit) — the while-loop condition catches
+      // this on its next check, so no further trade fires this round.
     }
 
     setAutoRunning(false);
     setLiveTrades(0);
-  }, [onPlaceTrade]);
+  }, [onPlaceTrade, waitForNextSettlement]);
 
   const handleTrade = (direction: "up" | "down") => {
     if (stake > balance) {

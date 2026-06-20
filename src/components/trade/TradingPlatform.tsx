@@ -527,25 +527,25 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-14 sm:h-16 gap-2 max-w-screen-2xl mx-auto w-full">
 
           {/* Left: hamburger + wordmark */}
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0">
             <button
               onClick={() => setNavMenuOpen(true)}
-              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 min-h-[40px] min-w-[40px] flex items-center justify-center shrink-0"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <span className="text-base sm:text-lg font-extrabold tracking-tight select-none">
+            <span className="text-[13px] xs:text-sm sm:text-lg font-extrabold tracking-tight select-none whitespace-nowrap">
               <span className="text-[#3B82F6]">SHABIKI</span><span className="text-white">MARKET</span>
             </span>
           </div>
 
           {/* Right: account switcher + deposit */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Account balance + switcher */}
             <div className="relative">
               <button
                 onClick={() => setAccountDropdown((v) => !v)}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#141822] border border-white/[0.07] hover:border-white/20 transition min-h-[40px] max-w-[160px] sm:max-w-[200px]"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#141822] border border-white/[0.07] hover:border-white/20 transition min-h-[40px] max-w-[110px] xs:max-w-[140px] sm:max-w-[200px]"
               >
                 {/* Flag - circular, smaller */}
                 <span className="w-6 h-6 rounded-full bg-[#1a1f35] border border-white/10 flex items-center justify-center text-xs leading-none shrink-0">🇺🇸</span>
@@ -632,7 +632,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             {/* Deposit button */}
             <button
               onClick={() => setDepositOpen(true)}
-              className="px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl text-white bg-[#3B82F6] hover:bg-blue-500 transition min-h-[44px]"
+              className="px-2.5 xs:px-4 sm:px-5 py-2.5 text-[11px] xs:text-xs sm:text-sm font-bold rounded-xl text-white bg-[#3B82F6] hover:bg-blue-500 transition min-h-[40px] sm:min-h-[44px] shrink-0"
             >
               DEPOSIT
             </button>
@@ -853,7 +853,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                 <div className="absolute top-2 left-2 z-10">
                   <button
                     onClick={() => setAssetDropdown((v) => !v)}
-                    className="flex items-center gap-2 bg-black/30 backdrop-blur-sm rounded-xl px-2.5 py-1.5 max-w-[68%]"
+                    className="flex items-center gap-2 bg-black/30 backdrop-blur-sm rounded-xl px-2.5 py-1.5 max-w-[78%]"
                   >
                     <div className="w-6 h-6 rounded-lg bg-[#3B82F6]/15 border border-[#3B82F6]/25 flex items-center justify-center shrink-0">
                       <BarChart3 className="w-3 h-3 text-[#3B82F6]" />
@@ -1134,19 +1134,14 @@ function scoreDigits(market: ScanMarket, digits: number[]): { direction: string;
 }
 
 async function fetchAssetTicks(assetId: string, count: number): Promise<number[]> {
-  const ticks: number[] = [];
-  for (let i = 0; i < count; i++) {
-    try {
-      const res = await fetch(`/api/prices?assetId=${assetId}&tick=true`);
-      if (res.ok) {
-        const data = await res.json();
-        if (typeof data?.price === "number") ticks.push(data.price);
-      }
-    } catch {
-      // skip a failed tick, keep going
-    }
-  }
-  return ticks;
+  const requests = Array.from({ length: count }, () =>
+    fetch(`/api/prices?assetId=${assetId}&tick=true`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => (typeof data?.price === "number" ? data.price : null))
+      .catch(() => null)
+  );
+  const results = await Promise.all(requests);
+  return results.filter((p): p is number => p !== null);
 }
 
 function EntryScannerModal({
@@ -1163,7 +1158,7 @@ function EntryScannerModal({
   const [result, setResult] = useState<AssetScanResult | null>(null);
 
   const TOTAL_PASSES = 3;
-  const TICKS_PER_ASSET = 6;
+  const TICKS_PER_ASSET = 5;
 
   const handleScan = async () => {
     setScanning(true);
@@ -1173,26 +1168,31 @@ function EntryScannerModal({
     let best: AssetScanResult | null = null;
 
     for (let p = 1; p <= TOTAL_PASSES; p++) {
-      setPass(p);
-      // Each pass re-checks every asset and keeps the best signal seen so far,
-      // so later passes can only improve or confirm the result — same idea as
-      // TagBinary's progress bar filling toward a final "Best market" call.
-      for (const asset of ASSETS) {
-        setCurrentAssetName(asset.name);
-        const ticks = await fetchAssetTicks(asset.id, TICKS_PER_ASSET);
-        if (ticks.length < 3) continue; // not enough real data this round
-        const digits = ticks.map(getLastDigit);
-        const scored = scoreDigits(selectedMarket, digits);
-        if (!best || scored.confidence > best.confidence) {
-          best = {
+      setCurrentAssetName(`Pass ${p} — checking all ${ASSETS.length} assets…`);
+
+      // Fire every asset's tick batch in parallel — this is the main speedup,
+      // turning 12 sequential round-trips per pass into 1 concurrent batch.
+      const passResults = await Promise.all(
+        ASSETS.map(async (asset) => {
+          const ticks = await fetchAssetTicks(asset.id, TICKS_PER_ASSET);
+          if (ticks.length < 3) return null;
+          const digits = ticks.map(getLastDigit);
+          const scored = scoreDigits(selectedMarket, digits);
+          return {
             assetId: asset.id,
             assetName: asset.name,
             direction: scored.direction,
             digit: scored.digit,
             confidence: Math.round(scored.confidence),
-          };
-        }
+          } as AssetScanResult;
+        })
+      );
+
+      for (const r of passResults) {
+        if (r && (!best || r.confidence > best.confidence)) best = r;
       }
+
+      setPass(p);
     }
 
     setResult(best);
