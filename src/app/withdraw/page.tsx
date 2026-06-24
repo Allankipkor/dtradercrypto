@@ -2,9 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Smartphone, Building2, ShieldAlert, X } from "lucide-react";
+import { ChevronLeft, Smartphone, Building2, CheckCircle2, Clock, X } from "lucide-react";
 
 type Tab = "mpesa" | "bank";
+
+interface WithdrawSuccess {
+  amount: number;
+  amountKes?: number;
+  phone?: string;
+  method: "mpesa" | "crypto";
+}
+
+// Masks a phone number to show only the first 3 and last 3 digits, e.g.
+// "0712345678" -> "071****678" (matches the pattern on the success screen).
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return phone;
+  return `${digits.slice(0, 3)}****${digits.slice(-3)}`;
+}
 
 export default function WithdrawPage() {
   const router = useRouter();
@@ -15,8 +30,7 @@ export default function WithdrawPage() {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showKycPopup, setShowKycPopup] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [success, setSuccess] = useState<WithdrawSuccess | null>(null);
 
   const MIN = 100;
   const MAX = 150000;
@@ -33,7 +47,6 @@ export default function WithdrawPage() {
 
   const handleWithdraw = async () => {
     setError("");
-    setSubmitted(false);
     const amt = parseFloat(amount);
 
     if (!amt || amt < MIN) {
@@ -73,15 +86,13 @@ export default function WithdrawPage() {
       if (!res.ok) throw new Error(data.error || "Withdrawal failed");
 
       setBalance(data.balance ?? balance);
-      setSubmitted(true);
       setAmount("");
-
-      // Withdrawal was created and is pending — but since no real KYC
-      // verification exists yet, always surface the gating popup so the
-      // user understands why it isn't processed immediately.
-      if (data.requiresKyc) {
-        setShowKycPopup(true);
-      }
+      setSuccess({
+        amount: amt,
+        amountKes: data.amountKes,
+        phone: data.phone,
+        method: tab === "mpesa" ? "mpesa" : "crypto",
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Withdrawal failed");
     } finally {
@@ -202,45 +213,76 @@ export default function WithdrawPage() {
           >
             {loading ? "Processing…" : `Withdraw to ${tab === "mpesa" ? "M-Pesa" : "Bank"}`}
           </button>
-
-          {submitted && !showKycPopup && (
-            <p className="text-[11px] text-gray-500 text-center leading-relaxed">
-              Your withdrawal is being processed. Funds will be sent within 24 hours.
-            </p>
-          )}
         </div>
       </div>
 
-      {/* KYC gating popup */}
-      {showKycPopup && (
+      {/* Withdrawal requested — success screen */}
+      {success && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm bg-[#0d0f17] border border-white/10 rounded-3xl p-6 text-center shadow-2xl relative">
+          <div className="w-full max-w-sm bg-[#0d0f17] border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
             <button
-              onClick={() => setShowKycPopup(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white"
+              onClick={() => setSuccess(null)}
+              className="absolute top-4 right-4 z-10 text-white/70 hover:text-white p-1"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/15 mx-auto mb-4 flex items-center justify-center">
-              <ShieldAlert className="w-9 h-9 text-amber-400" />
+
+            {/* Green header band */}
+            <div className="bg-emerald-500/15 px-6 pt-8 pb-7 text-center">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/15 mx-auto mb-4 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/25 flex items-center justify-center">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+                </div>
+              </div>
+              <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-2">
+                Withdrawal Requested
+              </p>
+              <p className="text-4xl font-extrabold text-white tabular-nums">
+                ${success.amount.toFixed(2)}
+              </p>
+              {success.amountKes !== undefined && (
+                <p className="text-sm text-gray-400 mt-1.5 tabular-nums">
+                  ≈ KES {success.amountKes.toLocaleString("en-US")}
+                </p>
+              )}
             </div>
-            <p className="text-base font-bold text-white mb-2">Verify KYC before withdrawing</p>
-            <p className="text-sm text-gray-400 leading-relaxed mb-5">
-              Your withdrawal request has been received and is on hold. Identity verification is required before funds can be released.
-            </p>
-            <button
-              disabled
-              title="KYC verification is coming soon"
-              className="w-full h-12 rounded-xl bg-white/[0.06] text-gray-500 font-bold text-sm cursor-not-allowed mb-2.5"
-            >
-              Verify KYC
-            </button>
-            <button
-              onClick={() => setShowKycPopup(false)}
-              className="w-full h-11 rounded-xl text-gray-400 text-sm font-medium hover:bg-white/5 transition"
-            >
-              I&apos;ll do this later
-            </button>
+
+            {/* Detail rows */}
+            <div className="px-5 py-5 space-y-3">
+              {success.method === "mpesa" && success.phone && (
+                <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-4 py-3.5">
+                  <div className="w-9 h-9 rounded-full bg-[#3B82F6]/15 flex items-center justify-center shrink-0">
+                    <Smartphone className="w-4 h-4 text-[#3B82F6]" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">M-Pesa Phone Number</p>
+                    <p className="text-sm font-bold text-white tabular-nums">{maskPhone(success.phone)}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-4 py-3.5">
+                <div className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Average Processing Time</p>
+                  <p className="text-sm font-bold text-white">Instant to 2 mins</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <p className="text-sm text-gray-300">Your withdrawal is being processed.</p>
+              </div>
+
+              <button
+                onClick={() => { setSuccess(null); router.push("/"); }}
+                className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm transition flex items-center justify-center gap-2"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
