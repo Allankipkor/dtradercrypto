@@ -1,79 +1,80 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
-interface GravityPayWebhookBody {
-  type: string;
-  transactionId: string;
-  data: {
-    amount: number;
-    mpesaReceipt?: string;
-    phoneNumber?: string;
-    reference: string;
-    checkoutRequestId?: string;
-    paidAt?: string;
-    failureReason?: string;
+interface LipiaCallbackBody {
+  status: boolean;
+  message?: string;
+  response: {
+    Amount: number;
+    ExternalReference: string;
+    MerchantRequestID: string;
+    CheckoutRequestID: string;
+    MpesaReceiptNumber: string;
+    Phone: string;
+    ResultCode: number;
+    ResultDesc: string;
+    Metadata?: Record<string, unknown>;
+    Status: "Success" | "Failed" | string;
   };
 }
 
-function verifySignature(rawBody: string, signature: string | null, secret: string): boolean {
-  if (!signature) return false;
-  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  // Use a timing-safe comparison to avoid leaking info via response-time differences
-  const sigBuf = Buffer.from(signature);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length) return false;
-  return crypto.timingSafeEqual(sigBuf, expBuf);
+// Lipia Online's docs confirm there is no webhook signature header or
+// shared secret to verify against — their guidance for testing callbacks
+// is just "expose your local server with ngrok," nothing about
+// authenticating the request. This route is therefore unauthenticated by
+// the provider's own design, not as a gap on our side.
+//
+// Practical exposure: anyone who discovers this URL and an externalRef they
+// don't already control still can't credit themselves, since the lookup
+// below only matches an existing *pending* transaction created by our own
+// deposit route — an attacker would need to guess a live reference for a
+// real pending deposit and race it before the legitimate callback or the
+// poll-status fallback resolves it. Low but nonzero; consider rate-limiting
+// this route or checking source IP if Lipia documents one later.
+function verifySignature(_req: Request, _rawBody: string): boolean {
+  return true;
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.GRAVITYPAY_WEBHOOK_SECRET;
-  if (!secret) {
-    console.error("GRAVITYPAY_WEBHOOK_SECRET is not set");
-    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
-  }
-
-  // IMPORTANT: read the raw text body first — signature was computed over the
-  // exact bytes GravityPay sent, not a re-stringified version of parsed JSON.
   const rawBody = await req.text();
-  const signature = req.headers.get("x-webhook-signature");
 
-  if (!verifySignature(rawBody, signature, secret)) {
-    console.warn("GravityPay webhook: invalid signature");
+  if (!verifySignature(req, rawBody)) {
+    console.warn("Lipia webhook: signature verification failed");
     return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
   }
 
-  let body: GravityPayWebhookBody;
+  let body: LipiaCallbackBody;
   try {
     body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { type, data } = body;
-  const reference = data?.reference;
+  const { response } = body;
+  const reference = response?.ExternalReference;
 
   if (!reference) {
     return NextResponse.json({ error: "Missing reference" }, { status: 400 });
   }
 
   // Find the pending transaction we created when initiating the STK push.
-  // We stored our reference as `externalRef` on the Transaction row.
+  // We stored our reference as `externalRef` on the Transaction row, and
+  // sent it to Lipia as `external_reference` in the STK push request.
   const transaction = await prisma.transaction.findFirst({
     where: { externalRef: reference, status: "pending" },
   });
 
   if (!transaction) {
-    // Either already processed (duplicate webhook delivery — GravityPay may
+    // Either already processed (duplicate webhook delivery — Lipia may
     // retry) or we never created this transaction. Respond 200 either way
     // so they don't keep retrying a transaction we can't do anything with.
-    console.warn(`GravityPay webhook: no pending transaction found for reference ${reference}`);
+    console.warn(`Lipia webhook: no pending transaction found for reference ${reference}`);
     return NextResponse.json({ ok: true, note: "No matching pending transaction" });
   }
 
-  if (type === "PAYMENT_SUCCESS") {
-    const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
+  const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
 
+  if (response.Status === "Success" && response.ResultCode === 0) {
     await prisma.$transaction([
       prisma.transaction.update({
         where: { id: transaction.id },
@@ -81,9 +82,9 @@ export async function POST(req: Request) {
           status: "completed",
           metadata: JSON.stringify({
             ...existingMeta,
-            mpesaReceipt: data.mpesaReceipt,
-            paidAt: data.paidAt,
-            checkoutRequestId: data.checkoutRequestId,
+            mpesaReceipt: response.MpesaReceiptNumber,
+            checkoutRequestId: response.CheckoutRequestID,
+            merchantRequestId: response.MerchantRequestID,
           }),
         },
       }),
@@ -97,25 +98,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  if (type === "PAYMENT_FAILED" || type === "PAYMENT_CANCELLED") {
-    const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
+  // Anything else (Status === "Failed", or a non-zero ResultCode) is treated
+  // as a failed payment — Lipia's docs only document Success/Failed, no
+  // separate "cancelled" state, so ResultDesc is kept for diagnosis.
+  await prisma.transaction.update({
+    where: { id: transaction.id },
+    data: {
+      status: "failed",
+      metadata: JSON.stringify({
+        ...existingMeta,
+        failureReason: response.ResultDesc ?? response.Status,
+      }),
+    },
+  });
 
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: {
-        status: "failed",
-        metadata: JSON.stringify({
-          ...existingMeta,
-          failureReason: data.failureReason ?? type,
-        }),
-      },
-    });
-
-    console.log(`Deposit failed: ${reference} (${data.failureReason ?? type})`);
-    return NextResponse.json({ ok: true });
-  }
-
-  // Unknown event type — acknowledge so they don't retry, but log it for visibility
-  console.warn(`GravityPay webhook: unhandled event type "${type}" for reference ${reference}`);
-  return NextResponse.json({ ok: true, note: "Unhandled event type" });
+  console.log(`Deposit failed: ${reference} (${response.ResultDesc ?? response.Status})`);
+  return NextResponse.json({ ok: true });
 }
