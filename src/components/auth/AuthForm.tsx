@@ -114,7 +114,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="07XX XXX XXX"
+                    placeholder="+XX XXX XXX"
                     className="w-full px-4 py-3 rounded-xl bg-[#030706] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#3B82F6]/50 focus:ring-1 focus:ring-[#3B82F6]/30 transition"
                   />
                 </div>
