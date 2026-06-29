@@ -1,5 +1,5 @@
 {
-  "name": "openmarket",
+  "name": "dtradercrypto",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,6 +12,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "^10.1.0",
     "@prisma/client": "^5.22.0",
     "axios": "^1.18.0",
     "bcryptjs": "^3.0.3",

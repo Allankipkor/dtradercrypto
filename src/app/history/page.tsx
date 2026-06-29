@@ -45,8 +45,8 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0c12] text-white">
-      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#0a0c12]/95 backdrop-blur z-10">
+    <div className="min-h-screen bg-[#050a08] text-white">
+      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#050a08]/95 backdrop-blur z-10">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-white/5">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -81,7 +81,7 @@ export default function HistoryPage() {
             {items.map((item) => (
               <div
                 key={`${item.kind}-${item.id}`}
-                className="flex items-center gap-3 bg-[#0d0f17] border border-white/[0.06] rounded-xl px-3.5 py-3"
+                className="flex items-center gap-3 bg-[#09100d] border border-white/[0.06] rounded-xl px-3.5 py-3"
               >
                 <div className="w-9 h-9 rounded-full bg-white/[0.05] flex items-center justify-center shrink-0">
                   {getIcon(item)}

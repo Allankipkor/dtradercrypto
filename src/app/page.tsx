@@ -12,7 +12,7 @@ import { Footer } from "@/components/Footer";
 
 export default function Home() {
   return (
-    <div className="bg-[#13161e] text-white min-h-screen-safe overflow-x-hidden transition-colors duration-300">
+    <div className="bg-[#030706] text-white min-h-screen-safe overflow-x-hidden transition-colors duration-300">
       <Navbar />
       <Hero />
       <TickerMarquee />

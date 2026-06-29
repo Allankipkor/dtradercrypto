@@ -3,7 +3,7 @@ import { Star } from "lucide-react";
 const REVIEWS = [
   {
     quote:
-      "Switched from three other platforms. OpenMarket is the fastest and most reliable by far.",
+      "Switched from three other platforms. DTraderCrypto is the fastest and most reliable by far.",
     name: "Alex M.",
     country: "USA",
     initials: "AM",
@@ -53,7 +53,7 @@ export function Reviews() {
         {REVIEWS.map(({ quote, name, country, initials }) => (
           <div
             key={name}
-            className="rounded-2xl p-5 border border-white/[0.07] bg-[#1c2030]"
+            className="rounded-2xl p-5 border border-white/[0.07] bg-[#09100d]"
           >
             <div className="flex gap-0.5 mb-3">
               {Array.from({ length: 5 }).map((_, i) => (

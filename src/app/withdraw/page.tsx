@@ -101,8 +101,8 @@ export default function WithdrawPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0c12] text-white">
-      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#0a0c12]/95 backdrop-blur z-10">
+    <div className="min-h-screen bg-[#050a08] text-white">
+      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#050a08]/95 backdrop-blur z-10">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-white/5">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -113,7 +113,7 @@ export default function WithdrawPage() {
         <p className="text-sm text-gray-400">Withdraw to M-Pesa or your linked bank account</p>
 
         {/* Available balance */}
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl px-4 py-3.5 flex items-center justify-between">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl px-4 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
               <span className="text-emerald-400 text-sm font-bold">$</span>
@@ -130,7 +130,7 @@ export default function WithdrawPage() {
           <button
             onClick={() => setTab("mpesa")}
             className={`flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition ${
-              tab === "mpesa" ? "bg-rose-500 text-white" : "bg-[#0d0f17] border border-white/[0.08] text-gray-300"
+              tab === "mpesa" ? "bg-rose-500 text-white" : "bg-[#09100d] border border-white/[0.08] text-gray-300"
             }`}
           >
             <Smartphone className="w-4 h-4" /> M-Pesa
@@ -138,7 +138,7 @@ export default function WithdrawPage() {
           <button
             onClick={() => setTab("bank")}
             className={`flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition ${
-              tab === "bank" ? "bg-rose-500 text-white" : "bg-[#0d0f17] border border-white/[0.08] text-gray-300"
+              tab === "bank" ? "bg-rose-500 text-white" : "bg-[#09100d] border border-white/[0.08] text-gray-300"
             }`}
           >
             <Building2 className="w-4 h-4" /> Bank Withdraw
@@ -146,7 +146,7 @@ export default function WithdrawPage() {
         </div>
 
         {/* Form */}
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4 space-y-4">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4 space-y-4">
           {tab === "mpesa" ? (
             <div>
               <label className="text-[11px] text-gray-500 font-bold uppercase tracking-wider block mb-1.5">
@@ -156,7 +156,7 @@ export default function WithdrawPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="07XX XXX XXX"
-                className="w-full bg-[#141822] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-rose-500/50"
+                className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-rose-500/50"
               />
               <p className="text-[11px] text-gray-500 mt-1.5">
                 Payment goes to the number on your account.{" "}
@@ -175,7 +175,7 @@ export default function WithdrawPage() {
                 value={walletAddress}
                 onChange={(e) => setWalletAddress(e.target.value)}
                 placeholder="Account number / IBAN"
-                className="w-full bg-[#141822] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-rose-500/50"
+                className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-rose-500/50"
               />
             </div>
           )}
@@ -191,7 +191,7 @@ export default function WithdrawPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#141822] border border-white/[0.08] rounded-xl pl-8 pr-3.5 py-3 text-lg text-white outline-none focus:border-rose-500/50"
+                className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl pl-8 pr-3.5 py-3 text-lg text-white outline-none focus:border-rose-500/50"
               />
             </div>
             <div className="flex justify-between mt-1.5 text-[11px] text-gray-500">
@@ -219,7 +219,7 @@ export default function WithdrawPage() {
       {/* Withdrawal requested — success screen */}
       {success && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm bg-[#0d0f17] border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
+          <div className="w-full max-w-sm bg-[#09100d] border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
             <button
               onClick={() => setSuccess(null)}
               className="absolute top-4 right-4 z-10 text-white/70 hover:text-white p-1"

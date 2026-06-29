@@ -45,7 +45,7 @@ export function Steps() {
             >
               {num}
             </div>
-            <div className="rounded-2xl p-6 pt-5 border border-white/[0.07] bg-[#1c2030]">
+            <div className="rounded-2xl p-6 pt-5 border border-white/[0.07] bg-[#09100d]">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-4 bg-white/[0.04]">
                 <Icon className="w-5 h-5" style={{ color: "#3B82F6" }} />
               </div>

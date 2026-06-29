@@ -51,8 +51,8 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0c12] text-white">
-      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#0a0c12]/95 backdrop-blur z-10">
+    <div className="min-h-screen bg-[#050a08] text-white">
+      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#050a08]/95 backdrop-blur z-10">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-white/5">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -65,7 +65,7 @@ export default function SupportPage() {
           <p className="text-sm text-gray-400">Need help? Open a ticket and our team will respond shortly</p>
         </div>
 
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4 space-y-4">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4 space-y-4">
           {!submitted ? (
             <>
               <p className="text-sm font-bold text-white">Open a New Ticket</p>
@@ -77,7 +77,7 @@ export default function SupportPage() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-[#141822] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 appearance-none"
+                  className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 appearance-none"
                 >
                   <option value="">Select a category…</option>
                   {CATEGORIES.map((c) => (
@@ -94,7 +94,7 @@ export default function SupportPage() {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Brief description of your issue"
-                  className="w-full bg-[#141822] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50"
+                  className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50"
                 />
               </div>
 
@@ -107,7 +107,7 @@ export default function SupportPage() {
                   onChange={(e) => setMessage(e.target.value.slice(0, MAX_LEN))}
                   placeholder="Describe your issue in detail. Include any relevant transaction IDs or amounts."
                   rows={5}
-                  className="w-full bg-[#141822] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 resize-none"
+                  className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 resize-none"
                 />
                 <p className="text-[10px] text-gray-600 text-right mt-1">{message.length}/{MAX_LEN}</p>
               </div>
@@ -145,7 +145,7 @@ export default function SupportPage() {
         </div>
 
         {/* My Tickets placeholder */}
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4">
           <p className="text-sm font-bold text-white mb-3">My Tickets</p>
           <div className="flex flex-col items-center py-6 text-center">
             <CheckCircle2 className="w-8 h-8 text-gray-600 mb-2" />

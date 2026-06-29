@@ -77,7 +77,7 @@ export async function POST(req: Request) {
           phone: mpesaPhone,
           amountKes,
           accountReference: reference,
-          transactionDesc: "ShabikiMarket deposit",
+          transactionDesc: "DTraderCrypto deposit",
         });
 
         await prisma.transaction.update({

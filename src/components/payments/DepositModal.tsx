@@ -2,8 +2,19 @@
 
 import { useState } from "react";
 import { X, Smartphone, Bitcoin, CreditCard, Copy, Check } from "lucide-react";
+import {
+  PayPalScriptProvider,
+  PayPalButtons,
+} from "@paypal/react-paypal-js";
 
 type Tab = "mpesa" | "crypto" | "card";
+
+// Maps a PayPal orderId -> our own transactionId, bridging createOrder and
+// onApprove (PayPalOneTimePaymentButton only hands the orderId back to
+// onApprove, not anything else we passed into createOrder). Module-level
+// rather than component state since it's short-lived internal plumbing,
+// not something that should trigger a re-render.
+const paypalTransactionByOrderId: Record<string, string> = {};
 
 interface DepositModalProps {
   open: boolean;
@@ -152,6 +163,45 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handlePaypalCreateOrder = async (): Promise<string> => {
+    const res = await fetch("/api/payments/paypal/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Could not start checkout");
+    // Stash the transactionId on the orderId's own response so the capture
+    // step below can find it again — simplest way to thread this through
+    // without extra component state, since PayPalButtons' onApprove only
+    // gets handed back the orderID, not anything else we passed in here.
+    paypalTransactionByOrderId[data.orderId] = data.transactionId;
+    // The classic SDK's createOrder expects the bare order ID string to be
+    // returned directly — not wrapped in an object, unlike the v6 SDK.
+    return data.orderId;
+  };
+
+  const handlePaypalApprove = async (data: { orderID: string }) => {
+    setLoading(true);
+    setError("");
+    try {
+      const transactionId = paypalTransactionByOrderId[data.orderID];
+      const res = await fetch("/api/payments/paypal/capture-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId, orderId: data.orderID }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error ?? "Capture failed");
+      onSuccess(result.balance);
+      setMessage(`Deposit of $${result.amount.toFixed(2)} confirmed!`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Card payment failed to complete");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs: { id: Tab; label: string; icon: typeof Smartphone }[] = [
     { id: "mpesa", label: "M-Pesa", icon: Smartphone },
     { id: "crypto", label: "USDT", icon: Bitcoin },
@@ -173,11 +223,10 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
             <button
               key={id}
               onClick={() => { setTab(id); reset(); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition ${
-                tab === id
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition ${tab === id
                   ? "text-[#3B82F6] border-b-2 border-[#3B82F6]"
                   : "text-gray-500 hover:text-gray-300"
-              }`}
+                }`}
             >
               <Icon className="w-3.5 h-3.5" />
               {label}
@@ -203,11 +252,10 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
                 <button
                   key={v}
                   onClick={() => setAmount(v)}
-                  className={`flex-1 py-1 rounded text-[10px] font-medium border transition ${
-                    amount === v
+                  className={`flex-1 py-1 rounded text-[10px] font-medium border transition ${amount === v
                       ? "bg-[#1e3a5f] border-[#3B82F6] text-[#60a5fa]"
                       : "bg-[#13161e] text-gray-400 border-white/[0.07] hover:bg-white/5"
-                  }`}
+                    }`}
                 >
                   ${v}
                 </button>
@@ -269,10 +317,40 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
             </div>
           )}
 
+          {tab === "card" && (
+            <div>
+              {process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
+                <PayPalScriptProvider
+                  options={{
+                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
+                    currency: "USD",
+                    intent: "capture",
+                  }}
+                >
+                  <PayPalButtons
+                    style={{ layout: "vertical" }}
+                    createOrder={handlePaypalCreateOrder}
+                    onApprove={handlePaypalApprove}
+                    onCancel={() => { setError(""); setMessage("Card payment cancelled"); }}
+                    onError={(err) => {
+                      console.error("PayPal onError:", err);
+                      setError(`Card payment error: ${err instanceof Error ? err.message : String(err)}`);
+                    }}
+                  />
+                </PayPalScriptProvider>
+              ) : (
+                <p className="text-xs text-rose-400">Card payments are not configured</p>
+              )}
+              <p className="text-[10px] text-gray-500 mt-2 text-center">
+                Securely processed by PayPal
+              </p>
+            </div>
+          )}
+
           {error && <p className="text-xs text-rose-400">{error}</p>}
           {message && <p className="text-xs text-emerald-400">{message}</p>}
 
-          {!cryptoResult && (
+          {!cryptoResult && tab !== "card" && (
             <button
               onClick={handleDeposit}
               disabled={loading || amount < MIN_DEPOSIT}

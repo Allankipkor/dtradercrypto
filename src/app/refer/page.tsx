@@ -22,7 +22,7 @@ export default function ReferPage() {
     setReferralCode(hash.toString(36).toUpperCase().slice(0, 8).padEnd(8, "X"));
   }, [session]);
 
-  const referralLink = `https://shabikimarket.com/ref/${referralCode}`;
+  const referralLink = `https://dtradercrypto.com/ref/${referralCode}`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(referralLink);
@@ -38,8 +38,8 @@ export default function ReferPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0c12] text-white">
-      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#0a0c12]/95 backdrop-blur z-10">
+    <div className="min-h-screen bg-[#050a08] text-white">
+      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#050a08]/95 backdrop-blur z-10">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-white/5">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -57,7 +57,7 @@ export default function ReferPage() {
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
           {stats.map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4">
+            <div key={label} className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4">
               <div className="flex items-center gap-1.5 mb-2">
                 <Icon className={`w-4 h-4 ${color}`} />
                 <span className="text-xs text-gray-500">{label}</span>
@@ -68,13 +68,13 @@ export default function ReferPage() {
         </div>
 
         {/* Referral link */}
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4">
           <p className="text-sm font-bold text-white mb-1">Your Referral Link</p>
           <p className="text-xs text-gray-400 mb-3 leading-relaxed">
             Share this link — you earn 10% of every trade your referrals make
           </p>
           <div className="flex gap-2">
-            <div className="flex-1 bg-[#141822] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-gray-300 truncate">
+            <div className="flex-1 bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-gray-300 truncate">
               {referralLink}
             </div>
             <button
@@ -87,7 +87,7 @@ export default function ReferPage() {
         </div>
 
         {/* Recent referrals */}
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4">
           <p className="text-sm font-bold text-white mb-3">Recent Referrals</p>
           <div className="flex flex-col items-center py-6 text-center">
             <Users className="w-8 h-8 text-gray-600 mb-2" />

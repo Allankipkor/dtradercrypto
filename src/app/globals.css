@@ -3,9 +3,9 @@
 @theme {
   --color-primary: #3b82f6;
   --color-accent: #00d4aa;
-  --color-dark: #13161e;
-  --color-card: #1c2030;
-  --color-card-hover: #222639;
+  --color-dark: #030706;
+  --color-card: #09100d;
+  --color-card-hover: #14241e;
 }
 
 @keyframes marquee {

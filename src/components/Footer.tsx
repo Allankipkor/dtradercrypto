@@ -5,8 +5,8 @@ export function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center">
             <span className="text-sm font-extrabold tracking-tight">
-              <span className="text-[#3B82F6]">SHABIKI</span>
-              <span className="text-white">MARKET</span>
+              <span className="text-[#3B82F6]">DTRADER</span>
+              <span className="text-white">CRYPTO</span>
             </span>
           </div>
           <div className="flex items-center gap-5 text-xs text-gray-500">
@@ -20,7 +20,7 @@ export function Footer() {
               Support
             </a>
           </div>
-          <div className="text-xs text-gray-500">© 2026 ShabikiMarket</div>
+          <div className="text-xs text-gray-500">© 2026 DTraderCrypto</div>
         </div>
       </div>
     </footer>

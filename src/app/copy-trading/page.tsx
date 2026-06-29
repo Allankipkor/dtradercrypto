@@ -49,8 +49,8 @@ export default function CopyTradingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0c12] text-white">
-      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#0a0c12]/95 backdrop-blur z-10">
+    <div className="min-h-screen bg-[#050a08] text-white">
+      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#050a08]/95 backdrop-blur z-10">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-white/5">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -74,7 +74,7 @@ export default function CopyTradingPage() {
           </button>
         </div>
 
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4 space-y-4">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4 space-y-4">
           {/* Balance requirement banner */}
           <div className={`rounded-xl px-4 py-3 text-sm font-medium ${
             meetsMinimum ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
@@ -92,7 +92,7 @@ export default function CopyTradingPage() {
                 value={copyKey}
                 onChange={(e) => setCopyKey(e.target.value.toUpperCase())}
                 placeholder="e.g. ABCD-EFGH-IJKL"
-                className="w-full bg-[#141822] border border-white/[0.08] rounded-xl pl-10 pr-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 tracking-wider"
+                className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl pl-10 pr-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 tracking-wider"
               />
             </div>
           </div>
@@ -110,7 +110,7 @@ export default function CopyTradingPage() {
                   className={`rounded-xl border p-2.5 text-left transition ${
                     stakeMode === m.id
                       ? "border-[#3B82F6] bg-[#3B82F6]/10"
-                      : "border-white/[0.08] bg-[#141822]"
+                      : "border-white/[0.08] bg-[#0d1713]"
                   }`}
                 >
                   <p className={`text-xs font-bold mb-0.5 ${stakeMode === m.id ? "text-[#60a5fa]" : "text-gray-300"}`}>
@@ -157,7 +157,7 @@ export default function CopyTradingPage() {
                   type="number"
                   value={fixedAmount}
                   onChange={(e) => setFixedAmount(Number(e.target.value))}
-                  className="w-full bg-[#141822] border border-white/[0.08] rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-white outline-none focus:border-[#3B82F6]/50"
+                  className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-white outline-none focus:border-[#3B82F6]/50"
                 />
               </div>
             </div>
@@ -180,7 +180,7 @@ export default function CopyTradingPage() {
         </div>
 
         {/* Active copies placeholder */}
-        <div className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4">
+        <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4">
           <p className="text-sm font-bold text-white mb-3">Active Copy Relationships</p>
           <div className="flex flex-col items-center py-6 text-center">
             <Users className="w-8 h-8 text-gray-600 mb-2" />

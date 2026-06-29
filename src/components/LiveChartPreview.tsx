@@ -29,7 +29,7 @@ export function LiveChartPreview() {
           className="hidden md:block absolute -inset-6 rounded-[2rem] blur-[50px] opacity-25"
           style={{ background: "linear-gradient(135deg, #3B82F6, #00d4aa)" }}
         />
-        <div className="relative rounded-none md:rounded-2xl overflow-hidden border-y md:border border-white/[0.07] bg-[#1c2030] shadow-2xl shadow-black/30">
+        <div className="relative rounded-none md:rounded-2xl overflow-hidden border-y md:border border-white/[0.07] bg-[#09100d] shadow-2xl shadow-black/30">
           <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-white/[0.07]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-[#f7931a]/15 flex items-center justify-center">

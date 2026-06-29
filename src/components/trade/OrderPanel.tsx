@@ -64,7 +64,7 @@ function AdjustField({
   const labelColor = color === "text-emerald-400" ? "text-emerald-500/80" : "text-red-500/80";
 
   return (
-    <div className="bg-[#141822] rounded-xl p-1.5 border border-white/[0.06]">
+    <div className="bg-[#0d1713] rounded-xl p-1.5 border border-white/[0.06]">
       <div className="flex items-center justify-between mb-0.5">
         <span className={`text-[8px] font-bold uppercase tracking-wide ${labelColor}`}>{label}</span>
         {onToggle !== undefined && (
@@ -350,9 +350,9 @@ export function OrderPanel({
 
   const getColors = (): [string, string] => {
     switch (contractType) {
-      case "Even/Odd":     return ["bg-blue-500 hover:bg-blue-400", "bg-purple-500 hover:bg-purple-400"];
-      case "Over/Under":   return ["bg-cyan-500 hover:bg-cyan-400", "bg-orange-500 hover:bg-orange-400"];
-      case "Match/Differ": return ["bg-emerald-500 hover:bg-emerald-400", "bg-rose-500 hover:bg-rose-400"];
+      case "Even/Odd":     return ["bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 shadow-lg shadow-blue-500/20", "bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-500 hover:to-fuchsia-400 shadow-lg shadow-purple-500/20"];
+      case "Over/Under":   return ["bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 shadow-lg shadow-cyan-500/20", "bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 shadow-lg shadow-orange-500/20"];
+      case "Match/Differ": return ["bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-lg shadow-emerald-500/20", "bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-500 hover:to-pink-400 shadow-lg shadow-rose-500/20"];
     }
   };
 
@@ -390,7 +390,7 @@ export function OrderPanel({
   const downPayout = stake * (1 + downPct / 100);
   const winRate = sessionTrades > 0 ? (sessionWins / sessionTrades) * 100 : 0;
   const sessionBlocked = sessionResult !== null;
-  const btnBase = "rounded-xl font-bold text-white text-sm flex items-center justify-center transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed";
+  const btnBase = "rounded-2xl font-bold text-white text-sm flex items-center justify-center transition-all duration-200 active:scale-95 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none";
 
   return (
     <div className="flex flex-col gap-0 relative">
@@ -451,8 +451,8 @@ export function OrderPanel({
             <button
               key={s}
               onClick={() => onStakeChange(s)}
-              className={`flex-1 py-1 rounded-lg text-[11px] font-bold border transition ${
-                stake === s ? "bg-[#1e3a5f] border-[#3B82F6] text-[#60a5fa]" : "border-white/[0.08] bg-white/[0.03] text-gray-400 hover:bg-white/[0.08]"
+              className={`flex-1 py-1 rounded-full text-[11px] font-bold border transition-all duration-200 ${
+                stake === s ? "bg-[#3B82F6] border-[#3B82F6] text-white shadow-[0_2px_10px_rgba(59,130,246,0.35)]" : "border-white/[0.08] bg-white/[0.02] text-gray-400 hover:bg-white/[0.08] hover:text-white"
               }`}
             >
               ${s}
@@ -494,10 +494,10 @@ export function OrderPanel({
             <button
               key={d}
               onClick={() => setSelectedDigit(d)}
-              className={`flex-1 h-7 rounded-lg text-[12px] font-bold transition min-w-0 ${
+              className={`flex-1 h-7 rounded-lg text-[12px] font-bold transition-all duration-200 min-w-0 ${
                 d === selectedDigit
-                  ? "bg-[#3B82F6] text-white"
-                  : "bg-[#141822] text-gray-400 border border-white/[0.07] hover:bg-white/[0.06]"
+                  ? "bg-[#3B82F6] text-white border border-white/20 shadow-[0_0_12px_rgba(59,130,246,0.6)] scale-110"
+                  : "bg-[#0d1713] text-gray-400 border border-white/[0.07] hover:bg-white/[0.06] hover:text-white hover:border-white/20"
               }`}
             >
               {d}
@@ -612,7 +612,7 @@ export function OrderPanel({
       {/* ── Target/Stop session result modal ── */}
       {sessionResult && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#141822] border border-white/10 rounded-3xl p-6 w-[88%] max-w-sm text-center shadow-2xl">
+          <div className="bg-[#0d1713] border border-white/10 rounded-3xl p-6 w-[88%] max-w-sm text-center shadow-2xl">
             <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center ${
               sessionResult === "target" ? "bg-emerald-500/15" : "bg-rose-500/15"
             }`}>

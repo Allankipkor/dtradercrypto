@@ -35,8 +35,8 @@ export default function ResponsibleTradingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0c12] text-white">
-      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#0a0c12]/95 backdrop-blur z-10">
+    <div className="min-h-screen bg-[#050a08] text-white">
+      <header className="flex items-center gap-3 px-4 h-14 border-b border-white/[0.07] sticky top-0 bg-[#050a08]/95 backdrop-blur z-10">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-white/5">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -49,7 +49,7 @@ export default function ResponsibleTradingPage() {
         </p>
 
         {sections.map(({ icon: Icon, title, body }) => (
-          <div key={title} className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-4 flex gap-3">
+          <div key={title} className="bg-[#09100d] border border-white/[0.07] rounded-2xl p-4 flex gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center shrink-0">
               <Icon className="w-4.5 h-4.5 text-[#3B82F6]" />
             </div>

@@ -20,7 +20,7 @@ export function AppDownload() {
               <div className="w-8 h-8 md:w-11 md:h-11 rounded-xl bg-white/15 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
               </div>
-              <span className="text-[8px] md:text-[10px] font-bold text-white/70">OpenMarket</span>
+              <span className="text-[8px] md:text-[10px] font-bold text-white/70">DTraderCrypto</span>
             </div>
             <div className="absolute -bottom-2 -right-2 w-7 h-7 md:w-9 md:h-9 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30 border-2 border-white/20">
               <Download className="w-3 h-3 md:w-4 md:h-4 text-white" />
@@ -35,7 +35,7 @@ export function AppDownload() {
               Trade on the go
             </h3>
             <p className="text-white/60 text-sm md:text-[15px] max-w-md mb-5 leading-relaxed">
-              Download the OpenMarket app. Get a better trading experience on your mobile device.
+              Download the DTraderCrypto app. Get a better trading experience on your mobile device.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-3 justify-center md:justify-start">
               <button className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-[15px] bg-white text-[#1e40af] shadow-xl shadow-black/15 hover:shadow-2xl active:scale-[0.97] transition-all">
