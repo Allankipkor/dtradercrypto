@@ -35,12 +35,12 @@ export function AuthForm({ mode }: AuthFormProps) {
         });
         const text = await res.text();
 
-let data;
-try {
-  data = JSON.parse(text);
-} catch {
-  throw new Error("Server did not return valid JSON");
-}
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error("Server did not return valid JSON");
+        }
         if (!res.ok) throw new Error(data.error ?? "Registration failed");
       }
 
@@ -108,7 +108,7 @@ try {
               {!isLogin && (
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                    Phone (for M-Pesa)
+                    Phone Number
                   </label>
                   <input
                     type="tel"
