@@ -6,7 +6,7 @@ import { getAsset } from "@/lib/assets";
 import { tickPrice } from "@/lib/prices";
 import { settleAndFetchTrades } from "@/lib/trades";
 
-const CONTRACT_TYPES = ["Even/Odd", "Over/Under", "Match/Differ"] as const;
+const CONTRACT_TYPES = ["Over/Under"] as const;
 
 const placeSchema = z.object({
   assetId: z.string(),

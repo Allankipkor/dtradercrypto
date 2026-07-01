@@ -4,8 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus, Square, Zap, XCircle, CheckCircle2 } from "lucide-react";
 import type { Asset } from "@/lib/assets";
 
-const CONTRACT_TYPES = ["Even/Odd", "Over/Under", "Match/Differ"] as const;
+const CONTRACT_TYPES = ["Over/Under"] as const;
 const STAKE_PRESETS = [1, 5, 10, 25, 50, 100];
+
+const OVER_UNDER_PAYOUTS: Record<number, { over: number; under: number }> = {
+  0: { over: 5.5, under: 0 },
+  1: { over: 17.6, under: 566.6 },
+  2: { over: 34.2, under: 233.3 },
+  3: { over: 56.6, under: 122.2 },
+  4: { over: 88.0, under: 66.6 },
+  5: { over: 66.6, under: 88.0 },
+  6: { over: 122.2, under: 56.6 },
+  7: { over: 233.3, under: 34.2 },
+  8: { over: 566.6, under: 17.6 },
+  9: { over: 0, under: 5.5 },
+};
 
 type ContractType = (typeof CONTRACT_TYPES)[number];
 
@@ -342,32 +355,34 @@ export function OrderPanel({
 
   const getLabels = (): [string, string] => {
     switch (contractType) {
-      case "Even/Odd":     return ["Even", "Odd"];
+      case "Even/Odd" as unknown as ContractType:     return ["Even", "Odd"];
       case "Over/Under":   return ["Over", "Under"];
-      case "Match/Differ": return ["Match", "Differ"];
+      case "Match/Differ" as unknown as ContractType: return ["Match", "Differ"];
+      default: return ["Over", "Under"];
     }
   };
 
   const getColors = (): [string, string] => {
     switch (contractType) {
-      case "Even/Odd":     return ["bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 shadow-lg shadow-blue-500/20", "bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-500 hover:to-fuchsia-400 shadow-lg shadow-purple-500/20"];
-      case "Over/Under":   return ["bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 shadow-lg shadow-cyan-500/20", "bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 shadow-lg shadow-orange-500/20"];
-      case "Match/Differ": return ["bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-lg shadow-emerald-500/20", "bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-500 hover:to-pink-400 shadow-lg shadow-rose-500/20"];
+      case "Even/Odd" as unknown as ContractType:     return ["bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 shadow-lg shadow-blue-500/20", "bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-500 hover:to-fuchsia-400 shadow-lg shadow-purple-500/20"];
+      case "Over/Under":   return ["bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-500/20", "bg-rose-600 hover:bg-rose-500 transition-colors shadow-lg shadow-rose-500/20"];
+      case "Match/Differ" as unknown as ContractType: return ["bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-lg shadow-emerald-500/20", "bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-500 hover:to-pink-400 shadow-lg shadow-rose-500/20"];
+      default: return ["bg-emerald-600 hover:bg-emerald-500", "bg-rose-600 hover:bg-rose-500"];
     }
   };
 
   const getPayoutSplit = (): { upPct: number; downPct: number } => {
     switch (contractType) {
-      case "Match/Differ": return { upPct: 850, downPct: 5 };
-      case "Even/Odd":     return { upPct: 95, downPct: 95 };
+      case "Match/Differ" as unknown as ContractType: return { upPct: 850, downPct: 5 };
+      case "Even/Odd" as unknown as ContractType:     return { upPct: 95, downPct: 95 };
       case "Over/Under": {
-        const overChance = (9 - selectedDigit) / 9 || 0.01;
-        const underChance = (selectedDigit + 1) / 9 || 0.01;
+        const payouts = OVER_UNDER_PAYOUTS[selectedDigit] || { over: 0, under: 0 };
         return {
-          upPct: Math.min(950, Math.round((1 / overChance) * 95 * 10) / 10),
-          downPct: Math.min(950, Math.round((1 / underChance) * 95 * 10) / 10),
+          upPct: payouts.over,
+          downPct: payouts.under,
         };
       }
+      default: return { upPct: 0, downPct: 0 };
     }
   };
 
@@ -559,7 +574,7 @@ export function OrderPanel({
           <>
             <button
               onClick={() => handleTrade("up")}
-              disabled={sessionBlocked}
+              disabled={sessionBlocked || upPct === 0}
               className={`${btnBase} ${upColor} flex-col gap-0.5 h-14`}
             >
               <div className="flex items-center gap-1.5">
@@ -573,7 +588,7 @@ export function OrderPanel({
             </button>
             <button
               onClick={() => handleTrade("down")}
-              disabled={sessionBlocked}
+              disabled={sessionBlocked || downPct === 0}
               className={`${btnBase} ${downColor} flex-col gap-0.5 h-14`}
             >
               <div className="flex items-center gap-1.5">

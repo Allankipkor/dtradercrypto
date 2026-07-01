@@ -13,10 +13,29 @@ export async function settleExpiredTrades(userId?: string) {
 
   for (const trade of openTrades) {
     const closePrice = await getPrice(trade.assetId);
-    const won =
-      trade.direction === "up"
-        ? closePrice > trade.openPrice
-        : closePrice < trade.openPrice;
+    const getLastDigit = (val: number) => {
+      const cents = Math.round(val * 100);
+      return cents % 10;
+    };
+
+    let won = false;
+    if (trade.contractType.startsWith("Over/Under")) {
+      const parts = trade.contractType.split("|");
+      const digitDirection = parts[1] || (trade.direction === "up" ? "Over" : "Under");
+      const predictedDigit = parts[2] !== undefined ? parseInt(parts[2], 10) : 0;
+      const finalDigit = getLastDigit(closePrice);
+
+      if (digitDirection === "Over") {
+        won = finalDigit > predictedDigit;
+      } else if (digitDirection === "Under") {
+        won = finalDigit < predictedDigit;
+      }
+    } else {
+      won =
+        trade.direction === "up"
+          ? closePrice > trade.openPrice
+          : closePrice < trade.openPrice;
+    }
     const profit = won ? trade.stake * (trade.payout / 100) : -trade.stake;
 
     await prisma.$transaction([

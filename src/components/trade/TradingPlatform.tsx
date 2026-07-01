@@ -70,7 +70,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   const isAuthenticated = !forceDemo && !!session?.user;
 
   const [selectedAsset, setSelectedAsset] = useState<Asset>(ASSETS[0]);
-  const [contractType, setContractType] = useState<ContractType>("Match/Differ");
+  const [contractType, setContractType] = useState<ContractType>("Over/Under");
   const [stake, setStake] = useState(10);
   const [balance, setBalance] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -346,10 +346,30 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   // Resolve positions
   useEffect(() => {
     const now = Date.now();
+    const getLastDigit = (val: number) => {
+      const cents = Math.round(val * 100);
+      return cents % 10;
+    };
     setPositions((prev) =>
       prev.map((p) => {
         if (p.status !== "open" || p.expiry > now) return p;
-        const won = p.direction === "up" ? price > p.openPrice : price < p.openPrice;
+        
+        let won = false;
+        if (p.type.startsWith("Over/Under")) {
+          const parts = p.type.split("|");
+          const digitDirection = parts[1] || (p.direction === "up" ? "Over" : "Under");
+          const predictedDigit = parts[2] !== undefined ? parseInt(parts[2], 10) : 0;
+          const finalDigit = getLastDigit(price);
+          
+          if (digitDirection === "Over") {
+            won = finalDigit > predictedDigit;
+          } else if (digitDirection === "Under") {
+            won = finalDigit < predictedDigit;
+          }
+        } else {
+          won = p.direction === "up" ? price > p.openPrice : price < p.openPrice;
+        }
+
         const profit = won ? p.payout - p.stake : -p.stake;
 
         if (p.isDemo) {
@@ -439,13 +459,18 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
       setTradeError("Insufficient balance");
       return false;
     }
-    const durationMs = 1000; // fixed 1-second tick-based resolution
+    const durationMs = 10; // fixed 1-tick resolution (10ms check)
     const payout = +(stake * (1 + selectedAsset.payout / 100)).toFixed(2);
     const resolvedContractType = meta?.contractType ?? contractType;
+    const enrichedContractType =
+      meta?.digit !== undefined && meta?.digitDirection
+        ? `${resolvedContractType}|${meta.digitDirection}|${meta.digit}`
+        : resolvedContractType;
+
     const newPosition: Position = {
       id: crypto.randomUUID(),
       asset: selectedAsset.name,
-      type: resolvedContractType,
+      type: enrichedContractType,
       direction,
       stake,
       payout,
@@ -886,23 +911,10 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 
         {/* Center: Chart */}
         <main className="flex-1 flex flex-col min-w-0 min-h-0">
-          {/* Contract tabs */}
-          <div className="flex border-b border-white/[0.07] bg-[#050a08] shrink-0 overflow-x-auto scrollbar-hide">
-            {(["Matches/Differs", "Even/Odd", "Over/Under"] as const).map((t) => {
-              const mapped = t === "Matches/Differs" ? "Match/Differ" : t;
-              const isActive = contractType === mapped;
-              return (
-                <button
-                  key={t}
-                  onClick={() => setContractType(mapped as ContractType)}
-                  className={`flex-1 min-w-[90px] px-3 xl:px-6 py-3 text-[11px] xl:text-sm font-semibold border-b-2 transition whitespace-nowrap ${
-                    isActive ? "border-[#3B82F6] text-white" : "border-transparent text-gray-500 hover:text-gray-400"
-                  }`}
-                >
-                  {t}
-                </button>
-              );
-            })}
+          {/* Decorative trade type label */}
+          <div className="flex border-b border-white/[0.07] bg-[#050a08] shrink-0 items-center px-4 py-3 justify-between">
+            <span className="text-[11px] xl:text-xs font-bold uppercase tracking-wider text-gray-400">Trade Type</span>
+            <span className="text-[11px] xl:text-xs font-bold text-white bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded-md">Over/Under</span>
           </div>
           <div
             ref={chartContainerRef}
@@ -1003,23 +1015,10 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                 order panel (including Match/Differ) all scroll together as
                 one continuous list. Only the bottom nav stays fixed. */}
             <div className="flex-1 overflow-y-auto overscroll-contain bg-[#09100d]" style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}>
-              {/* Contract tabs */}
-              <div className="flex border-b border-white/[0.07] bg-[#050a08] overflow-x-auto scrollbar-hide snap-x">
-                {(["Matches/Differs", "Even/Odd", "Over/Under"] as const).map((t) => {
-                  const mapped = t === "Matches/Differs" ? "Match/Differ" : t;
-                  const isActive = contractType === mapped;
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => setContractType(mapped as ContractType)}
-                      className={`flex-1 min-w-[76px] py-2.5 text-[10px] xs:text-[11px] sm:text-xs font-semibold border-b-2 transition whitespace-nowrap snap-start min-h-[44px] ${
-                        isActive ? "border-[#3B82F6] text-white" : "border-transparent text-gray-500"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
+              {/* Decorative trade type label */}
+              <div className="flex border-b border-white/[0.07] bg-[#050a08] shrink-0 items-center px-4 py-2.5 justify-between min-h-[40px]">
+                <span className="text-[10px] xs:text-[11px] font-bold uppercase tracking-wider text-gray-400">Trade Type</span>
+                <span className="text-[10px] xs:text-[11px] font-bold text-white bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded-md">Over/Under</span>
               </div>
 
               {/* Chart card — asset info and price overlaid, TagBinary style */}
@@ -1330,7 +1329,7 @@ function EntryScannerModal({
   onClose: () => void;
   onUseSignal: (market: ScanMarket, direction: string, digit: number | undefined, assetId: string) => void;
 }) {
-  const [selectedMarket, setSelectedMarket] = useState<ScanMarket>("Even/Odd");
+  const [selectedMarket, setSelectedMarket] = useState<ScanMarket>("Over/Under");
   const [scanning, setScanning] = useState(false);
   const [pass, setPass] = useState(0);
   const [currentAssetName, setCurrentAssetName] = useState("");
@@ -1406,9 +1405,7 @@ function EntryScannerModal({
               disabled={scanning}
               className="w-full bg-[#0d1713] border border-white/[0.07] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 appearance-none disabled:opacity-50"
             >
-              <option value="Even/Odd">Even / Odd</option>
               <option value="Over/Under">Over / Under</option>
-              <option value="Match/Differ">Match / Differ</option>
             </select>
           </div>
 
