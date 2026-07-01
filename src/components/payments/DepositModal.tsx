@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { X, Smartphone, Bitcoin, CreditCard, Copy, Check } from "lucide-react";
+import { X, Bitcoin, CreditCard, Copy, Check } from "lucide-react";
 import {
   PayPalScriptProvider,
   PayPalButtons,
 } from "@paypal/react-paypal-js";
 
-type Tab = "mpesa" | "crypto" | "card";
+type Tab = "crypto" | "card";
 
 // Maps a PayPal orderId -> our own transactionId, bridging createOrder and
 // onApprove (PayPalOneTimePaymentButton only hands the orderId back to
@@ -32,10 +32,9 @@ interface CryptoResult {
   message?: string;
 }
 
-export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositModalProps) {
-  const [tab, setTab] = useState<Tab>("mpesa");
+export function DepositModal({ open, onClose, onSuccess }: DepositModalProps) {
+  const [tab, setTab] = useState<Tab>("crypto");
   const [amount, setAmount] = useState(5);
-  const [phone, setPhone] = useState(userPhone ?? "");
   const [txHash, setTxHash] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -54,41 +53,6 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
     setTxHash("");
   };
 
-  const pollDepositStatus = (transactionId: string) => {
-    let attempts = 0;
-    const maxAttempts = 20; // ~60 seconds at 3s intervals
-
-    const interval = setInterval(async () => {
-      attempts++;
-      try {
-        const res = await fetch(`/api/payments/status/${transactionId}`);
-        const data = await res.json();
-
-        if (data.status === "completed") {
-          clearInterval(interval);
-          setMessage(`Deposit of $${data.amount} confirmed!`);
-          setError("");
-          if (data.balance !== undefined) onSuccess(data.balance);
-          return;
-        }
-
-        if (data.status === "failed") {
-          clearInterval(interval);
-          setError("Payment failed or was cancelled. Please try again.");
-          setMessage("");
-          return;
-        }
-      } catch {
-        // network hiccup — keep polling, don't surface an error for a transient miss
-      }
-
-      if (attempts >= maxAttempts) {
-        clearInterval(interval);
-        setMessage("Still waiting for confirmation. Check back in a moment, or refresh.");
-      }
-    }, 3000);
-  };
-
   const handleDeposit = async () => {
     setLoading(true);
     setError("");
@@ -100,7 +64,6 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
         body: JSON.stringify({
           method: tab,
           amount,
-          phone: tab === "mpesa" ? phone : undefined,
         }),
       });
       const data = await res.json();
@@ -111,12 +74,7 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
         );
       }
 
-      if (tab === "mpesa") {
-        setMessage(data.message ?? "Check your phone for the M-Pesa prompt");
-        if (data.transactionId) {
-          pollDepositStatus(data.transactionId);
-        }
-      } else if (tab === "crypto") {
+      if (tab === "crypto") {
         setCryptoResult(data);
         if (data.status === "completed" && data.balance != null) {
           onSuccess(data.balance);
@@ -202,8 +160,7 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
     }
   };
 
-  const tabs: { id: Tab; label: string; icon: typeof Smartphone }[] = [
-    { id: "mpesa", label: "M-Pesa", icon: Smartphone },
+  const tabs: { id: Tab; label: string; icon: typeof Bitcoin | typeof CreditCard }[] = [
     { id: "crypto", label: "USDT", icon: Bitcoin },
     { id: "card", label: "Card", icon: CreditCard },
   ];
@@ -263,23 +220,7 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
             </div>
           </div>
 
-          {tab === "mpesa" && (
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                M-Pesa Phone Number
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="07XX XXX XXX"
-                className="w-full px-4 py-3 rounded-xl bg-[#13161e] border border-white/[0.07] text-white text-sm focus:outline-none focus:border-[#3B82F6]/50"
-              />
-              <p className="text-[10px] text-gray-500 mt-1.5">
-                You&apos;ll receive an STK push to complete payment
-              </p>
-            </div>
-          )}
+
 
           {tab === "crypto" && cryptoResult && cryptoResult.status === "pending" && (
             <div className="rounded-xl bg-[#13161e] border border-white/[0.07] p-4 space-y-3">
