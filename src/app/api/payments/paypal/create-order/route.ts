@@ -6,7 +6,7 @@ import { createPaypalOrder, isPaypalConfigured } from "@/lib/paypal";
 import { generateDepositReference } from "@/lib/crypto";
 
 const schema = z.object({
-    amount: z.number().min(5).max(10000),
+    amount: z.number().min(10).max(10000),
 });
 
 export async function POST(req: Request) {

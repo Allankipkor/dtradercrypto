@@ -12,7 +12,7 @@ import {
 
 const schema = z.object({
   method: z.enum(["mpesa", "crypto", "card"]),
-  amount: z.number().min(5).max(10000),
+  amount: z.number().min(10).max(10000),
   phone: z.string().optional(),
 });
 

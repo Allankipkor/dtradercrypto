@@ -110,7 +110,7 @@ export default function WithdrawPage() {
       </header>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
-        <p className="text-sm text-gray-400">Withdraw to M-Pesa or your linked bank account</p>
+        <p className="text-sm text-gray-400">Withdraw to Phone Number or your linked bank account</p>
 
         {/* Available balance */}
         <div className="bg-[#09100d] border border-white/[0.07] rounded-2xl px-4 py-3.5 flex items-center justify-between">
@@ -133,7 +133,7 @@ export default function WithdrawPage() {
               tab === "mpesa" ? "bg-rose-500 text-white" : "bg-[#09100d] border border-white/[0.08] text-gray-300"
             }`}
           >
-            <Smartphone className="w-4 h-4" /> M-Pesa
+            <Smartphone className="w-4 h-4" /> Phone Number
           </button>
           <button
             onClick={() => setTab("bank")}
@@ -150,7 +150,7 @@ export default function WithdrawPage() {
           {tab === "mpesa" ? (
             <div>
               <label className="text-[11px] text-gray-500 font-bold uppercase tracking-wider block mb-1.5">
-                M-Pesa Phone Number
+                Phone Number
               </label>
               <input
                 value={phone}
@@ -211,7 +211,7 @@ export default function WithdrawPage() {
             disabled={loading}
             className="w-full h-12 rounded-xl bg-rose-500 hover:bg-rose-400 disabled:opacity-50 text-white font-bold text-sm transition"
           >
-            {loading ? "Processing…" : `Withdraw to ${tab === "mpesa" ? "M-Pesa" : "Bank"}`}
+            {loading ? "Processing…" : `Withdraw to ${tab === "mpesa" ? "Phone Number" : "Bank"}`}
           </button>
         </div>
       </div>
@@ -255,7 +255,7 @@ export default function WithdrawPage() {
                     <Smartphone className="w-4 h-4 text-[#3B82F6]" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">M-Pesa Phone Number</p>
+                    <p className="text-xs text-gray-500">Phone Number</p>
                     <p className="text-sm font-bold text-white tabular-nums">{maskPhone(success.phone)}</p>
                   </div>
                 </div>
