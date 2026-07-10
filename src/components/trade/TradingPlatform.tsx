@@ -1159,7 +1159,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         </nav>
       </div>
 
-      <DepositModal open={depositOpen} onClose={() => setDepositOpen(false)} onSuccess={syncFromApi} />
+      <DepositModal open={depositOpen} onClose={() => setDepositOpen(false)} onSuccess={syncFromApi} userPhone={session?.user && "phone" in session.user ? (session.user as { phone: string }).phone : undefined} />
 
       {scannerOpen && (
         <EntryScannerModal

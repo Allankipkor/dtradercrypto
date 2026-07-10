@@ -2,20 +2,30 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkStkStatus } from "@/lib/mpesa";
 
-interface LipiaCallbackBody {
-  status: boolean;
+interface CallbackBody {
+  status?: string | boolean;
+  Status?: string;
   message?: string;
-  response: {
-    Amount: number;
-    ExternalReference: string;
-    MerchantRequestID: string;
-    CheckoutRequestID: string;
-    MpesaReceiptNumber: string;
-    Phone: string;
-    ResultCode: number;
-    ResultDesc: string;
-    Metadata?: Record<string, unknown>;
-    Status: "Success" | "Failed" | string;
+  external_reference?: string;
+  ExternalReference?: string;
+  checkout_request_id?: string;
+  CheckoutRequestID?: string;
+  transaction_id?: string;
+  mpesa_receipt_number?: string;
+  MpesaReceiptNumber?: string;
+  mpesaReceiptNumber?: string;
+  mpesaReceipt?: string;
+  reference?: string;
+  MerchantRequestID?: string;
+  ResultDesc?: string;
+  ResultDescription?: string;
+  response?: {
+    ExternalReference?: string;
+    Status?: string;
+    CheckoutRequestID?: string;
+    MerchantRequestID?: string;
+    MpesaReceiptNumber?: string;
+    ResultDesc?: string;
   };
 }
 
@@ -41,54 +51,47 @@ export async function POST(req: Request) {
   const rawBody = await req.text();
 
   if (!verifySignature(req, rawBody)) {
-    console.warn("Lipia webhook: signature verification failed");
+    console.warn("Mpesa webhook: signature verification failed");
     return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
   }
 
-  let body: LipiaCallbackBody;
+  let body: CallbackBody;
   try {
     body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { response } = body;
-  const reference = response?.ExternalReference;
+  // Extract reference, status, checkoutRequestId and receipt number defensively
+  const reference = body?.response?.ExternalReference || body?.external_reference || body?.ExternalReference || body?.reference;
+  const status = body?.response?.Status || body?.status || body?.Status;
+  const checkoutRequestId = body?.response?.CheckoutRequestID || body?.checkout_request_id || body?.CheckoutRequestID || body?.transaction_id || body?.MerchantRequestID;
+  const mpesaReceipt = body?.response?.MpesaReceiptNumber || body?.mpesa_receipt_number || body?.MpesaReceiptNumber || body?.mpesaReceiptNumber || body?.mpesaReceipt || "";
+  const failureReason = body?.response?.ResultDesc || body?.response?.Status || body?.message || body?.ResultDesc || body?.ResultDescription || body?.status || "failed";
 
   if (!reference) {
     return NextResponse.json({ error: "Missing reference" }, { status: 400 });
   }
 
   // Find the pending transaction we created when initiating the STK push.
-  // We stored our reference as `externalRef` on the Transaction row, and
-  // sent it to Lipia as `external_reference` in the STK push request.
   const transaction = await prisma.transaction.findFirst({
     where: { externalRef: reference, status: "pending" },
   });
 
   if (!transaction) {
-    // Either already processed (duplicate webhook delivery — Lipia may
-    // retry) or we never created this transaction. Respond 200 either way
-    // so they don't keep retrying a transaction we can't do anything with.
-    console.warn(`Lipia webhook: no pending transaction found for reference ${reference}`);
+    console.warn(`Mpesa webhook: no pending transaction found for reference ${reference}`);
     return NextResponse.json({ ok: true, note: "No matching pending transaction" });
   }
 
   const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
 
-  if (response.Status === "Success") {
-    // Don't credit on the callback body's say-so alone — corroborate with
-    // Lipia's own status API first. A forged callback can claim anything;
-    // it can't make Lipia's servers also report success for the same
-    // checkoutRequestId.
-    //
-    // NOTE: ResultCode is intentionally NOT trusted as a success signal
-    // anywhere in this file. Daraja (which Lipia wraps) reuses ResultCode 0
-    // for "STK push accepted for processing" on the *initiation* response —
-    // separate from "payment actually completed." Trusting it previously
-    // caused balances to be credited before the user had even entered their
-    // M-Pesa PIN. Only the literal Status string is trusted.
-    const checkoutRequestId = response.CheckoutRequestID;
+  const isSuccess = String(status).toLowerCase().trim() === "success";
+
+  if (isSuccess) {
+    if (!checkoutRequestId) {
+      console.warn(`Mpesa webhook: missing checkoutRequestId for reference ${reference}`);
+      return NextResponse.json({ error: "Missing checkoutRequestId" }, { status: 400 });
+    }
     let corroborated = false;
     try {
       const statusResult = await checkStkStatus(checkoutRequestId);
@@ -96,18 +99,15 @@ export async function POST(req: Request) {
       const remoteStatus = statusResult.data?.response?.Status?.toLowerCase().trim();
       corroborated = statusResult.success === true && remoteStatus === "success";
     } catch (err) {
-      console.error(`Lipia webhook: corroboration check failed for ${checkoutRequestId}`, err);
+      console.error(`Mpesa webhook: corroboration check failed for ${checkoutRequestId}`, err);
     }
 
     if (!corroborated) {
       console.warn(
-        `Lipia webhook: REJECTED uncorroborated success claim for reference ${reference} ` +
-        `(checkoutRequestId=${checkoutRequestId}) — callback claimed success but Lipia's ` +
-        `status API did not independently confirm it. Leaving transaction pending.`
+        `Mpesa webhook: REJECTED uncorroborated success claim for reference ${reference} ` +
+        `(checkoutRequestId=${checkoutRequestId}) — callback claimed success but independent check ` +
+        `status API did not confirm it. Leaving transaction pending.`
       );
-      // Don't mark as failed — a real payment may still be in flight and the
-      // status-poll fallback (or a later, legitimate callback retry) can
-      // still resolve it. Just decline to act on this particular callback.
       return NextResponse.json({ ok: true, note: "Not corroborated, left pending" });
     }
 
@@ -118,9 +118,8 @@ export async function POST(req: Request) {
           status: "completed",
           metadata: JSON.stringify({
             ...existingMeta,
-            mpesaReceipt: response.MpesaReceiptNumber,
-            checkoutRequestId: response.CheckoutRequestID,
-            merchantRequestId: response.MerchantRequestID,
+            mpesaReceipt,
+            checkoutRequestId,
             resolvedVia: "webhook-corroborated",
           }),
         },
@@ -135,22 +134,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Anything that isn't an explicit Status === "Success" (confirmed against
-  // Lipia's own status API above) falls through to here and is marked
-  // failed. ResultDesc/ResultCode are stored for diagnosis only — neither
-  // gates this branch, since ResultCode has shown false positives at the
-  // initiation stage.
+  // Failed transaction
   await prisma.transaction.update({
     where: { id: transaction.id },
     data: {
       status: "failed",
       metadata: JSON.stringify({
         ...existingMeta,
-        failureReason: response.ResultDesc ?? response.Status,
+        failureReason,
       }),
     },
   });
 
-  console.log(`Deposit failed: ${reference} (${response.ResultDesc ?? response.Status})`);
+  console.log(`Deposit failed: ${reference} (${failureReason})`);
   return NextResponse.json({ ok: true });
 }

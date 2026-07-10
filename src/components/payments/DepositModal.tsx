@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { X, Bitcoin, CreditCard, Copy, Check } from "lucide-react";
+import { X, Bitcoin, CreditCard, Copy, Check, Phone } from "lucide-react";
 import {
   PayPalScriptProvider,
   PayPalButtons,
 } from "@paypal/react-paypal-js";
 
-type Tab = "crypto" | "card";
+type Tab = "crypto" | "card" | "mpesa";
 
 // Maps a PayPal orderId -> our own transactionId, bridging createOrder and
 // onApprove (PayPalOneTimePaymentButton only hands the orderId back to
@@ -32,9 +32,10 @@ interface CryptoResult {
   message?: string;
 }
 
-export function DepositModal({ open, onClose, onSuccess }: DepositModalProps) {
+export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositModalProps) {
   const [tab, setTab] = useState<Tab>("crypto");
   const [amount, setAmount] = useState(10);
+  const [phone, setPhone] = useState(userPhone || "");
   const [txHash, setTxHash] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -64,6 +65,7 @@ export function DepositModal({ open, onClose, onSuccess }: DepositModalProps) {
         body: JSON.stringify({
           method: tab,
           amount,
+          phone: tab === "mpesa" ? phone : undefined,
         }),
       });
       const data = await res.json();
@@ -160,9 +162,10 @@ export function DepositModal({ open, onClose, onSuccess }: DepositModalProps) {
     }
   };
 
-  const tabs: { id: Tab; label: string; icon: typeof Bitcoin | typeof CreditCard }[] = [
+  const tabs: { id: Tab; label: string; icon: typeof Bitcoin | typeof CreditCard | typeof Phone }[] = [
     { id: "crypto", label: "USDT", icon: Bitcoin },
     { id: "card", label: "Card", icon: CreditCard },
+    { id: "mpesa", label: "M-Pesa", icon: Phone },
   ];
 
   return (
@@ -219,6 +222,24 @@ export function DepositModal({ open, onClose, onSuccess }: DepositModalProps) {
               ))}
             </div>
           </div>
+
+          {tab === "mpesa" && (
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-gray-400 mb-1">
+                M-Pesa Phone Number
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. 254712345678"
+                className="w-full px-4 py-3 rounded-xl bg-[#13161e] border border-white/[0.07] text-white text-sm focus:outline-none focus:border-[#3B82F6]/50"
+              />
+              <p className="text-[10px] text-gray-500">
+                You will receive an STK PIN prompt on this phone number to complete the payment.
+              </p>
+            </div>
+          )}
 
 
 
@@ -294,7 +315,7 @@ export function DepositModal({ open, onClose, onSuccess }: DepositModalProps) {
           {!cryptoResult && tab !== "card" && (
             <button
               onClick={handleDeposit}
-              disabled={loading || amount < MIN_DEPOSIT}
+              disabled={loading || amount < MIN_DEPOSIT || (tab === "mpesa" && !phone)}
               className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-40"
               style={{ background: "#3B82F6" }}
             >

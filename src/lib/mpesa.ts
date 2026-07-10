@@ -11,34 +11,38 @@ function formatPhone(phone: string): string {
   return digits;
 }
 
-const LIPIA_BASE_URL = process.env.LIPIA_BASE_URL ?? "https://lipia-api.kreativelabske.com/api/v2";
-
-interface LipiaStkResponse {
-  success: boolean;
+interface PayheroInitiateResponse {
+  status?: string;
+  success?: boolean;
   message?: string;
-  customerMessage?: string;
-  data: {
-    TransactionReference: string;
-    MerchantRequestID?: string;
-    CheckoutRequestID?: string;
-    [key: string]: unknown;
-  };
+  transaction_id?: string;
+  Reference?: string;
+  CheckoutRequestID?: string;
+  checkout_request_id?: string;
+}
+
+interface PayheroStatusResponse {
+  status?: string;
+  Status?: string;
+  mpesa_receipt_number?: string;
+  MpesaReceiptNumber?: string;
+  mpesaReceiptNumber?: string;
+  checkout_request_id?: string;
+  CheckoutRequestID?: string;
+  merchant_request_id?: string;
+  MerchantRequestID?: string;
+  phone_number?: string;
+  PhoneNumber?: string;
+  Phone?: string;
+  message?: string;
+  ResultDesc?: string;
+  ResultDescription?: string;
 }
 
 /**
- * INITIATE LIPIA ONLINE STK PUSH
- *
- * Per Lipia's docs: POST {LIPIA_BASE_URL}/payments/stk-push
- * Auth: Authorization: Bearer {LIPIA_API_KEY}
- *
- * Request body:
- * {
- *   "phone_number": "254712345678",
- *   "amount": 100,
- *   "external_reference": "order_123",
- *   "callback_url": "https://your-domain.com/api/payments/callback",
- *   "metadata": { ... }
- * }
+ * INITIATE PAYHERO STK PUSH
+ * POST https://backend.payhero.co.ke/api/v2/payments
+ * Auth: Basic auth using PAYHERO_API_USERNAME and PAYHERO_API_PASSWORD
  */
 export async function initiateStkPush(params: {
   phone: string;
@@ -46,110 +50,110 @@ export async function initiateStkPush(params: {
   accountReference: string;
   transactionDesc: string;
 }) {
-  const apiKey = process.env.LIPIA_API_KEY;
-  if (!apiKey) {
-    throw new Error("Lipia Online credentials not configured");
+  const username = process.env.PAYHERO_API_USERNAME;
+  const password = process.env.PAYHERO_API_PASSWORD;
+  const channelId = process.env.PAYHERO_CHANNEL_ID;
+  const callbackUrl = process.env.MPESA_CALLBACK_URL;
+
+  if (!username || !password || !channelId) {
+    throw new Error("Payhero credentials not configured");
   }
 
-  const callbackUrl = process.env.MPESA_CALLBACK_URL;
   if (!callbackUrl) {
     throw new Error("MPESA_CALLBACK_URL not configured");
   }
 
+  const auth = Buffer.from(`${username}:${password}`).toString("base64");
   const externalReference = params.accountReference?.slice(0, 32) ?? "DTRADERCRYPTO";
 
   let response;
   try {
-    response = await axios.post<LipiaStkResponse>(
-      `${LIPIA_BASE_URL}/payments/stk-push`,
+    response = await axios.post<PayheroInitiateResponse>(
+      "https://backend.payhero.co.ke/api/v2/payments",
       {
-        phone_number: formatPhone(params.phone),
         amount: Math.ceil(params.amountKes),
+        phone_number: formatPhone(params.phone),
+        channel_id: parseInt(channelId, 10),
+        provider: "m-pesa",
         external_reference: externalReference,
         callback_url: callbackUrl,
-        metadata: {
-          description: params.transactionDesc?.slice(0, 50) ?? "Deposit",
-        },
       },
       {
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Basic ${auth}`,
           "Content-Type": "application/json",
         },
       }
     );
   } catch (err) {
-    // Lipia returns its error body (with `message`/`customerMessage`) on
-    // non-2xx responses too — surface that instead of a generic axios error.
     if (axios.isAxiosError(err) && err.response?.data) {
-      const data = err.response.data as Partial<LipiaStkResponse>;
-      throw new Error(data.customerMessage || data.message || "STK push failed");
+      const data = err.response.data as PayheroInitiateResponse;
+      throw new Error(data.message || data.status || "STK push failed");
     }
     throw err;
   }
 
-  if (!response.data.success) {
-    throw new Error(response.data.customerMessage || response.data.message || "STK push failed");
+  const responseData = response.data;
+  const success = responseData.status === "success" || responseData.success === true;
+  
+  if (!success) {
+    throw new Error(responseData.message || "STK push failed");
   }
 
-  // Normalize to the field names the rest of our app expects (set by the old
-  // GravityPay integration), so callers (deposit route, status polling)
-  // don't need to know Lipia's exact shape.
-  return {
-    transactionId: response.data.data.TransactionReference,
-    checkoutRequestId: response.data.data.CheckoutRequestID ?? response.data.data.TransactionReference,
-    merchantRequestId: response.data.data.MerchantRequestID ?? response.data.data.TransactionReference,
-    status: "pending",
-    CustomerMessage: response.data.customerMessage ?? response.data.message ?? "Request accepted for processing",
-  };
-}
+  const transactionId = String(responseData.transaction_id || responseData.Reference || responseData.CheckoutRequestID || externalReference);
+  const checkoutRequestId = String(responseData.checkout_request_id || responseData.CheckoutRequestID || transactionId);
 
-interface LipiaStatusResponse {
-  success: boolean;
-  message?: string;
-  customerMessage?: string;
-  data?: {
-    response: {
-      Amount: number;
-      ExternalReference: string;
-      MerchantRequestID: string;
-      CheckoutRequestID: string;
-      MpesaReceiptNumber: string;
-      Phone: string;
-      ResultCode: number;
-      ResultDesc: string;
-      Metadata?: Record<string, unknown>;
-      Status: "Success" | "Failed" | "Pending" | string;
-    };
+  return {
+    transactionId,
+    checkoutRequestId,
+    merchantRequestId: checkoutRequestId,
+    status: "pending",
+    CustomerMessage: responseData.message || "Request accepted for processing",
   };
 }
 
 /**
- * CHECK STK PUSH STATUS — used for polling fallback while webhooks are
- * unreliable. Pass the TransactionReference (called checkoutRequestId by
- * callers, for compatibility with the old GravityPay naming) returned by
- * initiateStkPush.
- *
- * Per Lipia's docs: GET {LIPIA_BASE_URL}/payments/status?reference={ref}
+ * CHECK STK PUSH STATUS
+ * GET https://backend.payhero.co.ke/api/v2/transaction-status?reference={ref}
  */
-export async function checkStkStatus(checkoutRequestId: string): Promise<LipiaStatusResponse> {
-  const apiKey = process.env.LIPIA_API_KEY;
-  if (!apiKey) {
-    throw new Error("Lipia Online credentials not configured");
+export async function checkStkStatus(checkoutRequestId: string) {
+  const username = process.env.PAYHERO_API_USERNAME;
+  const password = process.env.PAYHERO_API_PASSWORD;
+
+  if (!username || !password) {
+    throw new Error("Payhero credentials not configured");
   }
 
-  const response = await axios.get<LipiaStatusResponse>(
-    `${LIPIA_BASE_URL}/payments/status`,
+  const auth = Buffer.from(`${username}:${password}`).toString("base64");
+
+  const response = await axios.get<PayheroStatusResponse>(
+    "https://backend.payhero.co.ke/api/v2/transaction-status",
     {
       params: { reference: checkoutRequestId },
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Basic ${auth}`,
       },
-      validateStatus: () => true, // we want to inspect 404/error bodies ourselves
+      validateStatus: () => true,
     }
   );
 
-  return response.data;
+  const data = response.data;
+  const status = data.status || data.Status || "Pending";
+  const normalizedStatus = status.toLowerCase() === "success" ? "Success" : (status.toLowerCase() === "failed" ? "Failed" : "Pending");
+  
+  return {
+    success: response.status === 200 && (status.toLowerCase() === "success" || status.toLowerCase() === "pending"),
+    data: {
+      response: {
+        Status: normalizedStatus,
+        MpesaReceiptNumber: data.mpesa_receipt_number || data.MpesaReceiptNumber || data.mpesaReceiptNumber || "",
+        CheckoutRequestID: data.checkout_request_id || data.CheckoutRequestID || checkoutRequestId,
+        MerchantRequestID: data.merchant_request_id || data.MerchantRequestID || checkoutRequestId,
+        Phone: data.phone_number || data.PhoneNumber || data.Phone || "",
+        ResultDesc: data.message || data.ResultDesc || data.ResultDescription || "",
+      }
+    }
+  };
 }
 
 /**
@@ -161,8 +165,8 @@ export function usdToKes(usd: number): number {
 }
 
 /**
- * Check if Lipia Online is configured
+ * Check if Payhero M-Pesa is configured
  */
 export function isMpesaConfigured(): boolean {
-  return !!process.env.LIPIA_API_KEY;
+  return !!(process.env.PAYHERO_API_USERNAME && process.env.PAYHERO_API_PASSWORD && process.env.PAYHERO_CHANNEL_ID);
 }
