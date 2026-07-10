@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Minus, Plus, Square, Zap, XCircle, CheckCircle2 } from "lucide-react";
+import { Minus, Plus, Square, Zap, XCircle, CheckCircle2, ChevronRight } from "lucide-react";
 import type { Asset } from "@/lib/assets";
 
 const CONTRACT_TYPES = ["Over/Under"] as const;
@@ -42,6 +42,8 @@ interface OrderPanelProps {
    *  re-triggers the effect even if the digit value repeats. */
   appliedSignal?: { digit: number; nonce: number } | null;
   compact?: boolean;
+  price?: number;
+  priceHistory?: number[];
 }
 
 // ── Reusable adjustable number field ──
@@ -52,6 +54,7 @@ function AdjustField({
   color,
   enabled,
   onToggle,
+  light = false,
 }: {
   label: string;
   value: number;
@@ -59,13 +62,19 @@ function AdjustField({
   color: "text-emerald-400" | "text-red-400";
   enabled?: boolean;
   onToggle?: () => void;
+  light?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [raw, setRaw] = useState("");
 
   const step = value >= 1000 ? 100 : value >= 100 ? 10 : 1;
   const adjust = (delta: number) => onChange(Math.max(1, value + delta * step));
-  const dotColor = color === "text-emerald-400" ? "bg-emerald-500" : "bg-red-500";
+  
+  // Responsive/conditional theme styling
+  const dotColor = enabled
+    ? (color === "text-emerald-400" ? "bg-emerald-500" : "bg-red-500")
+    : (light ? "bg-slate-300" : "bg-white/20");
+    
   const borderColor = color === "text-emerald-400" ? "border-emerald-500" : "border-red-500";
 
   const commit = () => {
@@ -74,16 +83,32 @@ function AdjustField({
     setEditing(false);
   };
 
-  const labelColor = color === "text-emerald-400" ? "text-emerald-500/80" : "text-red-500/80";
+  const labelColor = light
+    ? (color === "text-emerald-400" ? "text-emerald-600/80" : "text-red-600/80")
+    : (color === "text-emerald-400" ? "text-emerald-500/80" : "text-red-500/80");
+
+  const valueColor = light
+    ? (color === "text-emerald-400" ? "text-emerald-600" : "text-red-600")
+    : color;
+
+  const bgClass = light
+    ? "bg-white border border-slate-200"
+    : "bg-[#0d1713] border border-white/[0.06]";
+
+  const buttonBg = light
+    ? "bg-slate-100 hover:bg-slate-200 active:scale-95"
+    : "bg-white/[0.07] hover:bg-white/[0.15] active:scale-95";
+
+  const buttonIconColor = light ? "text-slate-600" : "text-gray-300";
 
   return (
-    <div className="bg-[#0d1713] rounded-xl p-1.5 border border-white/[0.06]">
+    <div className={`rounded-xl p-1.5 ${bgClass}`}>
       <div className="flex items-center justify-between mb-0.5">
         <span className={`text-[8px] font-bold uppercase tracking-wide ${labelColor}`}>{label}</span>
         {onToggle !== undefined && (
           <button
             onClick={onToggle}
-            className={`w-6 h-3 rounded-full relative transition-colors ${enabled ? dotColor : "bg-white/20"}`}
+            className={`w-6 h-3 rounded-full relative transition-colors ${dotColor}`}
           >
             <span className={`absolute top-0.5 w-2 h-2 rounded-full bg-white transition-all ${enabled ? "left-3" : "left-0.5"}`} />
           </button>
@@ -98,22 +123,22 @@ function AdjustField({
           onChange={(e) => setRaw(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-          className={`w-full bg-transparent ${color} text-sm font-bold tabular-nums outline-none border-b-2 ${borderColor} pb-0.5 mb-1`}
+          className={`w-full bg-transparent ${valueColor} text-sm font-bold tabular-nums outline-none border-b-2 ${borderColor} pb-0.5 mb-1`}
         />
       ) : (
         <button
           onClick={() => { setRaw(String(value)); setEditing(true); }}
-          className={`w-full text-left ${color} text-sm font-bold tabular-nums mb-1 ${enabled === false ? "opacity-30" : ""}`}
+          className={`w-full text-left ${valueColor} text-sm font-bold tabular-nums mb-1 ${enabled === false ? "opacity-30" : ""}`}
         >
           ${value.toLocaleString()}
         </button>
       )}
       <div className="flex gap-1">
-        <button onClick={() => adjust(-1)} className="flex-1 h-6 rounded-lg bg-white/[0.07] hover:bg-white/[0.15] active:scale-95 flex items-center justify-center transition">
-          <Minus className="w-3 h-3 text-gray-300" />
+        <button onClick={() => adjust(-1)} className={`flex-1 h-6 rounded-lg flex items-center justify-center transition ${buttonBg}`}>
+          <Minus className={`w-3 h-3 ${buttonIconColor}`} />
         </button>
-        <button onClick={() => adjust(1)} className="flex-1 h-6 rounded-lg bg-white/[0.07] hover:bg-white/[0.15] active:scale-95 flex items-center justify-center transition">
-          <Plus className="w-3 h-3 text-gray-300" />
+        <button onClick={() => adjust(1)} className={`flex-1 h-6 rounded-lg flex items-center justify-center transition ${buttonBg}`}>
+          <Plus className={`w-3 h-3 ${buttonIconColor}`} />
         </button>
       </div>
     </div>
@@ -121,17 +146,16 @@ function AdjustField({
 }
 
 export function OrderPanel({
-  selectedAsset,
   contractType,
   stake,
   balance,
   tradeError,
-  onContractTypeChange,
   onStakeChange,
   onPlaceTrade,
   settledQueue,
   appliedSignal,
   compact = false,
+  priceHistory,
 }: OrderPanelProps) {
   const [tradeMode, setTradeMode] = useState<"auto" | "manual">("auto");
   const [selectedDigit, setSelectedDigit] = useState(5);
@@ -155,18 +179,9 @@ export function OrderPanel({
   const processedIdsRef = useRef<Set<string>>(new Set());
   const [sessionResult, setSessionResult] = useState<"target" | "stop" | null>(null);
 
-  // Auto-mode state. There is intentionally no loop and no "stop requested"
-  // flag here: auto mode places exactly one trade per click and reports its
-  // result, so there's nothing ongoing to ask to stop mid-flight.
+  // Auto-mode state
   const [autoRunning, setAutoRunning] = useState(false);
-  const [autoDirection, setAutoDirection] = useState<"up" | "down" | null>(null);
-  const [autoMeta, setAutoMeta] = useState<{ digit?: number; contractType?: string; digitDirection?: string } | undefined>();
   const [liveTrades, setLiveTrades] = useState(0); // 1 while the single auto trade is pending, else 0
-  // Mirrors autoRunning synchronously. `autoRunning` state only updates on
-  // the next render, so a rapid double-click/tap on the trade button can
-  // pass `if (autoRunningRef.current) return` twice before React ever
-  // re-renders the disabled button. This ref is set the instant the trade
-  // is accepted, closing that gap and guaranteeing only one trade fires.
   const autoRunningRef = useRef(false);
   // Resolves the moment the placed trade's settlement arrives, so the
   // single-trade flow can wait on real settlement instead of guessing with
@@ -331,8 +346,6 @@ export function OrderPanel({
     if (tradeMode === "auto") {
       if (autoRunningRef.current) return; // already running — checked synchronously, can't race
       autoRunningRef.current = true;
-      setAutoDirection(direction);
-      setAutoMeta(meta);
       runSingleAutoTrade(direction, meta, balance, stake);
     } else {
       // Manual: single trade
@@ -362,14 +375,6 @@ export function OrderPanel({
     }
   };
 
-  const getColors = (): [string, string] => {
-    switch (contractType) {
-      case "Even/Odd" as unknown as ContractType:     return ["bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 shadow-lg shadow-blue-500/20", "bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-500 hover:to-fuchsia-400 shadow-lg shadow-purple-500/20"];
-      case "Over/Under":   return ["bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-500/20", "bg-rose-600 hover:bg-rose-500 transition-colors shadow-lg shadow-rose-500/20"];
-      case "Match/Differ" as unknown as ContractType: return ["bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-lg shadow-emerald-500/20", "bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-500 hover:to-pink-400 shadow-lg shadow-rose-500/20"];
-      default: return ["bg-emerald-600 hover:bg-emerald-500", "bg-rose-600 hover:bg-rose-500"];
-    }
-  };
 
   const getPayoutSplit = (): { upPct: number; downPct: number } => {
     switch (contractType) {
@@ -386,133 +391,206 @@ export function OrderPanel({
     }
   };
 
-  const adjustStake = (delta: number) => {
-    // Flat $1 steps — no more jumping 1 -> 5 -> 10 -> 25 via the preset tiers.
-    const next = Math.round((stake + delta) * 100) / 100; // avoid float drift
-    onStakeChange(Math.max(1, next));
-  };
-
   const commitStake = () => {
     const n = parseFloat(rawStake);
     if (!isNaN(n) && n >= 1) onStakeChange(Math.round(n * 100) / 100);
     setEditingStake(false);
   };
 
-  const [upLabel, downLabel] = getLabels();
-  const [upColor, downColor] = getColors();
+  const [upLabel] = getLabels();
   const { upPct, downPct } = getPayoutSplit();
   const upPayout = stake * (1 + upPct / 100);
   const downPayout = stake * (1 + downPct / 100);
   const winRate = sessionTrades > 0 ? (sessionWins / sessionTrades) * 100 : 0;
   const sessionBlocked = sessionResult !== null;
-  const btnBase = "rounded-2xl font-bold text-white text-sm flex items-center justify-center transition-all duration-200 active:scale-95 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none";
+
+  const getLastDigit = (val: number) => {
+    const cents = Math.round(val * 100);
+    return cents % 10;
+  };
+
+  const secondLatestDigit = (priceHistory && priceHistory.length >= 2)
+    ? getLastDigit(priceHistory[priceHistory.length - 2])
+    : null;
+
+  const counts = Array(10).fill(0);
+  if (priceHistory && priceHistory.length > 0) {
+    priceHistory.forEach((p) => {
+      counts[getLastDigit(p)]++;
+    });
+  }
+  const total = (priceHistory && priceHistory.length) || 1;
+  const percentages = counts.map((c) => (c / total) * 100);
+  const maxPct = Math.max(...percentages);
+  const minPct = Math.min(...percentages);
+
+  const renderCircularDigit = (d: number) => {
+    const pct = percentages[d] || 0;
+    const isSelected = d === selectedDigit;
+    const isCold = pct === minPct;
+    const isHot = pct === maxPct && maxPct > 0;
+    
+    // SVG ring calculations
+    const strokeWidth = 2;
+    const radius = 17;
+    const circumference = 2 * Math.PI * radius; // ~106.8
+    const strokeDashoffset = circumference - (pct / 100) * circumference;
+
+    let ringColor = "#cbd5e1"; // default track grey
+    if (isSelected) ringColor = "#3b82f6";
+    else if (isCold) ringColor = "#ef4444"; // red for cold
+    else if (isHot) ringColor = "#10b981"; // green for hot
+
+    let circleBg = "bg-white";
+    let digitColor = "text-slate-900";
+    let pctColor = "text-slate-400 font-medium";
+    
+    if (isSelected) {
+      circleBg = "bg-[#0e244d]"; // filled dark navy
+      digitColor = "text-white";
+      pctColor = "text-[#00cbd6] font-bold";
+    }
+
+    return (
+      <div key={d} className="flex flex-col items-center flex-1 min-w-0 relative">
+        <button
+          onClick={() => setSelectedDigit(d)}
+          className={`w-11 h-11 rounded-full relative flex flex-col items-center justify-center transition-all ${circleBg} shadow-sm border border-slate-100 hover:scale-105 active:scale-95`}
+        >
+          {/* Circular Progress Ring */}
+          <svg className="absolute inset-0 w-full h-full -rotate-90 scale-[1.05]">
+            <circle
+              cx="22"
+              cy="22"
+              r={radius}
+              stroke={isSelected ? "#00cbd6" : ringColor}
+              strokeWidth={strokeWidth}
+              fill="transparent"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+            />
+          </svg>
+
+          {/* Text content inside circle */}
+          <span className={`text-[11px] font-extrabold z-10 leading-none ${digitColor}`}>{d}</span>
+          <span className={`text-[7px] font-bold z-10 mt-0.5 leading-none tabular-nums ${pctColor}`}>
+            {pct.toFixed(1)}%
+          </span>
+        </button>
+        
+        {/* Red triangle pointer below circle */}
+        {secondLatestDigit === d && (
+          <div className="absolute -bottom-1 flex flex-col items-center z-10">
+            <div className="w-0 h-0 border-l-[3.5px] border-r-[3.5px] border-b-[4.5px] border-l-transparent border-r-transparent border-b-rose-500 animate-bounce" />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="flex flex-col gap-0 relative">
-
-      {/* ── Auto / Manual ── */}
-      <div className="px-2.5 pt-2 pb-1.5 border-b border-white/[0.06]">
-        <div className="flex bg-white/[0.04] rounded-xl p-0.5 gap-0.5">
-          {(["auto", "manual"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => { if (!autoRunningRef.current) setTradeMode(m); }}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize transition ${
-                tradeMode === m ? "bg-[#3B82F6] text-white shadow" : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
+    <div className={`flex flex-col gap-3.5 relative text-slate-800 ${compact ? "" : "p-4 bg-white h-full"}`}>
+      
+      {/* ── Auto / Manual switcher (light theme) ── */}
+      <div className="bg-slate-200/85 rounded-xl p-0.5 flex gap-0.5 shadow-sm shrink-0">
+        {(["auto", "manual"] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => { if (!autoRunningRef.current) setTradeMode(m); }}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize transition-all duration-150 ${
+              tradeMode === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-800"
+            }`}
+          >
+            {m}
+          </button>
+        ))}
       </div>
 
-      {/* ── Stake ── */}
-      <div className="px-2.5 pt-1.5 pb-1.5 border-b border-white/[0.06]">
-        <div className="flex items-center justify-between bg-white/[0.04] rounded-xl px-3 py-1.5 mb-1.5">
-          <button onClick={() => adjustStake(-1)} className="w-7 h-7 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] active:scale-95 flex items-center justify-center transition">
-            <Minus className="w-3.5 h-3.5 text-gray-200" />
-          </button>
-          {editingStake ? (
-            <div className="flex items-baseline gap-1">
-              <span className="text-gray-400 text-sm">$</span>
-              <input
-                autoFocus
-                type="number"
-                min={1}
-                step={1}
-                value={rawStake}
-                onChange={(e) => setRawStake(e.target.value)}
-                onBlur={commitStake}
-                onKeyDown={(e) => { if (e.key === "Enter") commitStake(); if (e.key === "Escape") setEditingStake(false); }}
-                className="w-20 bg-transparent text-white text-xl font-bold tabular-nums outline-none border-b-2 border-[#3B82F6] text-center"
-              />
-            </div>
-          ) : (
-            <button
-              onClick={() => { setRawStake(String(stake)); setEditingStake(true); }}
-              className="flex items-baseline gap-1"
-            >
-              <span className="text-gray-400 text-sm">$</span>
-              <span className="text-white text-xl font-bold tabular-nums">{stake}</span>
-            </button>
-          )}
-          <button onClick={() => adjustStake(1)} className="w-7 h-7 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] active:scale-95 flex items-center justify-center transition">
-            <Plus className="w-3.5 h-3.5 text-gray-200" />
-          </button>
-        </div>
-        <div className="flex gap-1.5">
-          {STAKE_PRESETS.map((s) => (
-            <button
-              key={s}
-              onClick={() => onStakeChange(s)}
-              className={`flex-1 py-1 rounded-full text-[11px] font-bold border transition-all duration-200 ${
-                stake === s ? "bg-[#3B82F6] border-[#3B82F6] text-white shadow-[0_2px_10px_rgba(59,130,246,0.35)]" : "border-white/[0.08] bg-white/[0.02] text-gray-400 hover:bg-white/[0.08] hover:text-white"
-              }`}
-            >
-              ${s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-
-      {/* ── Risk controls (Auto mode only) ── */}
+      {/* ── Risk controls (if auto mode, light theme) ── */}
       {tradeMode === "auto" && (
-        <div className="px-2.5 pt-1.5 pb-1.5 border-b border-white/[0.06]">
-          <div className="grid grid-cols-2 gap-1.5">
-            <AdjustField label="Target profit" value={targetProfit} onChange={setTargetProfit} color="text-emerald-400" enabled={targetEnabled} onToggle={() => setTargetEnabled((v) => !v)} />
-            <AdjustField label="Stop loss" value={stopLoss} onChange={setStopLoss} color="text-red-400" enabled={stopEnabled} onToggle={() => setStopEnabled((v) => !v)} />
-          </div>
+        <div className="grid grid-cols-2 gap-1.5 animate-fadeIn shrink-0">
+          <AdjustField label="Target profit" value={targetProfit} onChange={setTargetProfit} color="text-emerald-400" enabled={targetEnabled} onToggle={() => setTargetEnabled((v) => !v)} light />
+          <AdjustField label="Stop loss" value={stopLoss} onChange={setStopLoss} color="text-red-400" enabled={stopEnabled} onToggle={() => setStopEnabled((v) => !v)} light />
         </div>
       )}
 
       {/* ── LIVE status bar (shown while auto-loop is running) ── */}
       {autoRunning && (
-        <div className="mx-2.5 mt-1.5 mb-1 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 flex items-center justify-between">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 flex items-center justify-between mt-0.5 animate-pulse shrink-0">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-amber-400 text-xs font-bold uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-[#107c80] animate-pulse" />
+            <span className="text-amber-800 text-[10px] font-bold uppercase tracking-wider">
               Live {liveTrades}T
             </span>
           </div>
-          <span className={`text-xs font-bold tabular-nums ${sessionPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+          <span className={`text-xs font-bold tabular-nums ${sessionPnl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
             {sessionPnl >= 0 ? "+" : ""}${sessionPnl.toFixed(2)}
           </span>
         </div>
       )}
 
-      {/* ── Digit selector (plain, selectable) ── */}
-      <div className="px-2.5 pt-1.5 pb-1.5 border-b border-white/[0.06]">
-        <div className="flex justify-between gap-1">
+      {/* ── 1. Digit selector circular progress rings stats grid (2x5) ── */}
+      <div className="space-y-2.5 shrink-0">
+        {/* Row 1: 0 - 4 */}
+        <div className="flex justify-between items-center gap-1.5 px-2">
+          {Array.from({ length: 5 }, (_, i) => i).map((d) => renderCircularDigit(d))}
+        </div>
+        {/* Row 2: 5 - 9 with side chevrons */}
+        <div className="flex items-center gap-1 px-1">
+          <button className="text-slate-400 hover:text-slate-600 font-extrabold text-[11px] px-1 active:scale-90 transition shrink-0 select-none">
+            «
+          </button>
+          <div className="flex-1 flex justify-between items-center gap-1.5">
+            {Array.from({ length: 5 }, (_, i) => i + 5).map((d) => renderCircularDigit(d))}
+          </div>
+          <button className="text-slate-400 hover:text-slate-600 font-extrabold text-[11px] px-1 active:scale-90 transition shrink-0 select-none">
+            »
+          </button>
+        </div>
+      </div>
+
+      {/* ── 2. Drag handle & Learn link ── */}
+      <div className="flex flex-col items-center py-0.5 shrink-0 select-none">
+        <div className="w-10 h-1 bg-slate-300 rounded-full mb-1.5" />
+        <button className="text-[11px] font-semibold text-slate-700 underline decoration-dashed decoration-slate-400 underline-offset-4 hover:text-slate-900 active:scale-95 transition">
+          Learn about this trade type
+        </button>
+      </div>
+
+      {/* ── 3. Over/Under market type dropdown ── */}
+      <div className="bg-[#f8fafc] border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm cursor-pointer hover:bg-slate-100/70 transition shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-0.5 select-none shrink-0">
+            <div className="w-5.5 h-5.5 bg-rose-50 border border-rose-100 rounded flex items-center justify-center text-rose-500 shadow-sm">
+              <svg viewBox="0 0 12 12" className="w-3 h-3 stroke-rose-600" fill="none" strokeWidth="1.8">
+                <line x1="2" y1="10" x2="10" y2="10" />
+                <path d="M4 2h6v6M10 2L3 9" />
+              </svg>
+            </div>
+            <div className="w-5.5 h-5.5 bg-rose-50 border border-rose-100 rounded flex items-center justify-center text-rose-500 shadow-sm">
+              <svg viewBox="0 0 12 12" className="w-3 h-3 stroke-rose-600" fill="none" strokeWidth="1.8">
+                <line x1="2" y1="2" x2="10" y2="2" />
+                <path d="M8 10H2V4M2 10l7-7" />
+              </svg>
+            </div>
+          </div>
+          <span className="text-sm font-bold text-slate-800">Over/Under</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-400 animate-pulse" />
+      </div>
+
+      {/* ── 4. Digit tabs row (2x5 flat selector) ── */}
+      <div className="bg-[#f1f5f9] border border-slate-200 rounded-xl p-1 shadow-inner shrink-0">
+        <div className="grid grid-cols-5 gap-1 rounded-lg overflow-hidden bg-slate-200/40 p-0.5">
           {Array.from({ length: 10 }, (_, d) => d).map((d) => (
             <button
               key={d}
               onClick={() => setSelectedDigit(d)}
-              className={`flex-1 h-7 rounded-lg text-[12px] font-bold transition-all duration-200 min-w-0 ${
+              className={`h-10 rounded-lg text-sm font-bold transition-all duration-150 ${
                 d === selectedDigit
-                  ? "bg-[#3B82F6] text-white border border-white/20 shadow-[0_0_12px_rgba(59,130,246,0.6)] scale-110"
-                  : "bg-[#0d1713] text-gray-400 border border-white/[0.07] hover:bg-white/[0.06] hover:text-white hover:border-white/20"
+                  ? "bg-[#cbd5e1] text-slate-900 shadow-sm border border-slate-300"
+                  : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/50"
               }`}
             >
               {d}
@@ -521,50 +599,87 @@ export function OrderPanel({
         </div>
       </div>
 
+      {/* ── 5. Stake Row ── */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 text-sm">
+          <span className="text-slate-500 font-bold select-none">1 tick</span>
+          <div className="flex items-center justify-center font-extrabold text-slate-900 text-base">
+            {editingStake ? (
+              <div className="flex items-baseline justify-center">
+                <input
+                  autoFocus
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={rawStake}
+                  onChange={(e) => setRawStake(e.target.value)}
+                  onBlur={commitStake}
+                  onKeyDown={(e) => { if (e.key === "Enter") commitStake(); if (e.key === "Escape") setEditingStake(false); }}
+                  className="w-16 text-center bg-transparent border-none outline-none font-extrabold text-slate-950 text-base"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => { setRawStake(String(stake)); setEditingStake(true); }}
+                className="font-extrabold text-slate-955 cursor-text hover:text-blue-600 transition"
+              >
+                {stake.toFixed(2)}
+              </button>
+            )}
+            <span className="ml-1 text-slate-700 font-bold">USD</span>
+          </div>
+          <span className="text-slate-400 font-bold select-none">Stake</span>
+        </div>
+
+        {/* Presets shown when editing stake */}
+        {editingStake && (
+          <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex gap-1.5 overflow-x-auto">
+            {STAKE_PRESETS.map((s) => (
+              <button
+                key={s}
+                onClick={() => { onStakeChange(s); setEditingStake(false); }}
+                className="px-3 py-1 rounded-full text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 transition active:scale-95"
+              >
+                ${s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Session stats ── */}
-      <div className="px-2.5 py-1.5 border-b border-white/[0.06] flex items-center justify-between">
+      <div className="flex items-center justify-between text-xs px-1 text-slate-500 font-medium shrink-0">
         <div className="flex items-center gap-1.5">
-          <Zap className="w-3 h-3 text-gray-500" />
-          <span className="text-[10px] text-gray-500">
+          <Zap className="w-3.5 h-3.5 text-slate-400" />
+          <span>
             Last {sessionTrades}T · {sessionWins}W · {sessionTrades - sessionWins}L
           </span>
         </div>
-        <span className={`text-[11px] font-bold ${sessionPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+        <span className={`font-bold ${sessionPnl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
           {sessionPnl >= 0 ? "+" : ""}${sessionPnl.toFixed(2)}
         </span>
       </div>
 
       {/* ── Error ── */}
       {tradeError && (
-        <div className="mx-2.5 mt-1.5 text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-1.5 text-center font-medium">
+        <div className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3.5 py-2 text-center font-semibold shrink-0">
           {tradeError}
         </div>
       )}
 
-      {/* ── Bottom block: payout info + CTA buttons — scrolls inline with everything else ── */}
-      <div>
-        {/* ── Payout info ── */}
-        <div className="px-2.5 pt-1.5 pb-0.5 flex justify-between text-[11px] text-gray-500">
-          <span>{selectedAsset.name.replace(" Index", "")}</span>
-          <span className="text-[#3B82F6] font-bold">{selectedAsset.payout}% payout</span>
-        </div>
-
-        {/* ── CTA buttons or STOP button ── */}
-        <div className="px-2.5 pb-2 pt-1.5 grid grid-cols-2 gap-2">
-          {autoRunning ? (
-            <>
-            {/* Left: greyed-out original button showing what's running */}
-            <button disabled className={`${btnBase} ${upColor} flex-col gap-0.5 h-14 opacity-40`}>
-              <div className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-white/20 text-[11px] font-bold flex items-center justify-center">{selectedDigit}</span>
-                <span>{autoDirection === "up" ? upLabel : downLabel}</span>
-              </div>
-              <div className="text-[10px] font-semibold opacity-80">Running…</div>
+      {/* ── CTA buttons or STOP button ── */}
+      <div className="grid grid-cols-2 gap-2 mt-1 relative shrink-0">
+        {autoRunning ? (
+          <>
+            {/* Left: Disabled button representing running trade */}
+            <button disabled className="h-14 rounded-2xl bg-[#008891]/40 text-white font-bold text-sm flex flex-col items-center justify-center opacity-50">
+              <span className="text-[10px] uppercase font-bold opacity-80">Running {upLabel}</span>
+              <span className="text-xs font-semibold">Payout ${upPayout.toFixed(2)}</span>
             </button>
             {/* Right: STOP button */}
             <button
               onClick={handleStop}
-              className="h-14 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 active:scale-95 transition"
+              className="h-14 rounded-2xl font-bold text-white text-sm flex items-center justify-center gap-2 bg-amber-505 hover:bg-amber-400 active:scale-95 transition"
             >
               <Square className="w-4 h-4 fill-white" />
               STOP
@@ -572,44 +687,56 @@ export function OrderPanel({
           </>
         ) : (
           <>
-            <button
-              onClick={() => handleTrade("up")}
-              disabled={sessionBlocked || upPct === 0}
-              className={`${btnBase} ${upColor} flex-col gap-0.5 h-14`}
-            >
-              <div className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-white/20 text-[11px] font-bold flex items-center justify-center">{selectedDigit}</span>
-                <span>{upLabel}</span>
+            {/* Left: Over Button (Teal) */}
+            <div className="relative">
+              {/* Yellow absolute Risk Disclaimer badge overlapping top-left of the Over button */}
+              <div className="absolute -top-2 left-2 z-10 bg-[#e5b51a] text-black text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-sm select-none border border-yellow-400 uppercase tracking-wide">
+                Risk Disclaimer
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold opacity-90">
-                <span>Payout ${upPayout.toFixed(2)}</span>
-                <span>{upPct.toFixed(1)}%</span>
-              </div>
-            </button>
+              
+              <button
+                onClick={() => handleTrade("up")}
+                disabled={sessionBlocked || upPct === 0}
+                className="w-full h-15 rounded-2xl bg-[#008891] hover:bg-[#00767c] disabled:opacity-40 text-white font-bold text-sm flex flex-col items-center justify-center transition-all duration-200 active:scale-95"
+              >
+                <div className="flex items-center gap-1.5">
+                  <svg viewBox="0 0 12 12" className="w-3.5 h-3.5 stroke-white" fill="none" strokeWidth="2">
+                    <line x1="2" y1="10" x2="10" y2="10" />
+                    <path d="M4 2h6v6M10 2L3 9" />
+                  </svg>
+                  <span>Over</span>
+                </div>
+                <div className="text-[10px] font-semibold opacity-90 mt-0.5">
+                  Payout {upPayout.toFixed(2)} USD
+                </div>
+              </button>
+            </div>
+
+            {/* Right: Under Button (Red) */}
             <button
               onClick={() => handleTrade("down")}
               disabled={sessionBlocked || downPct === 0}
-              className={`${btnBase} ${downColor} flex-col gap-0.5 h-14`}
+              className="h-15 rounded-2xl bg-[#ec3f47] hover:bg-[#d8353d] disabled:opacity-40 text-white font-bold text-sm flex flex-col items-center justify-center transition-all duration-200 active:scale-95"
             >
               <div className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-white/20 text-[11px] font-bold flex items-center justify-center">{selectedDigit}</span>
-                <span>{downLabel}</span>
+                <svg viewBox="0 0 12 12" className="w-3.5 h-3.5 stroke-white" fill="none" strokeWidth="2">
+                  <line x1="2" y1="2" x2="10" y2="2" />
+                  <path d="M8 10H2V4M2 10l7-7" />
+                </svg>
+                <span>Under</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold opacity-90">
-                <span>Payout ${downPayout.toFixed(2)}</span>
-                <span>{downPct.toFixed(1)}%</span>
+              <div className="text-[10px] font-semibold opacity-90 mt-0.5">
+                Payout {downPayout.toFixed(2)} USD
               </div>
             </button>
           </>
         )}
-        </div>
       </div>
-      {/* ── end pinned bottom block ── */}
 
       {/* ── Insufficient balance popup ── */}
       {showInsufficientPopup && (
         <div className="sticky bottom-3 left-3 right-3 z-50 mx-2.5">
-          <div className="bg-rose-500/95 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-2xl flex items-center gap-2.5">
+          <div className="bg-rose-500/95 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-2xl flex items-center gap-2.5 text-white">
             <XCircle className="w-5 h-5 text-white shrink-0" />
             <div className="flex-1">
               <p className="text-white text-sm font-bold">Insufficient balance</p>
@@ -627,45 +754,45 @@ export function OrderPanel({
       {/* ── Target/Stop session result modal ── */}
       {sessionResult && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0d1713] border border-white/10 rounded-3xl p-6 w-[88%] max-w-sm text-center shadow-2xl">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 w-[88%] max-w-sm text-center shadow-2xl">
             <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center ${
               sessionResult === "target" ? "bg-emerald-500/15" : "bg-rose-500/15"
             }`}>
               {sessionResult === "target"
-                ? <CheckCircle2 className="w-9 h-9 text-emerald-400" />
-                : <XCircle className="w-9 h-9 text-rose-400" />}
+                ? <CheckCircle2 className="w-9 h-9 text-emerald-500" />
+                : <XCircle className="w-9 h-9 text-rose-500" />}
             </div>
             <p className={`text-xs font-bold tracking-widest uppercase mb-2 ${
-              sessionResult === "target" ? "text-emerald-400" : "text-rose-400"
+              sessionResult === "target" ? "text-emerald-600" : "text-rose-600"
             }`}>
               {sessionResult === "target" ? "Target Profit Reached" : "Target Loss Reached"}
             </p>
             <p className={`text-3xl font-extrabold tabular-nums mb-5 ${
-              sessionResult === "target" ? "text-emerald-400" : "text-rose-400"
+              sessionResult === "target" ? "text-emerald-600" : "text-rose-600"
             }`}>
               {sessionPnl >= 0 ? "+" : ""}{sessionPnl.toFixed(2)}
-              <span className="text-base font-semibold text-gray-400 ml-1">USD</span>
+              <span className="text-base font-semibold text-slate-500 ml-1">USD</span>
             </p>
-            <div className="flex flex-col gap-2.5 mb-5 text-left">
+            <div className="flex flex-col gap-2.5 mb-5 text-left text-slate-700">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Trades</span>
-                <span className="text-white font-bold">{sessionTrades}</span>
+                <span className="text-slate-500">Trades</span>
+                <span className="font-bold">{sessionTrades}</span>
               </div>
-              <div className="h-px bg-white/[0.06]" />
+              <div className="h-px bg-slate-100" />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">W / L</span>
-                <span className="text-white font-bold">{sessionWins} / {sessionTrades - sessionWins}</span>
+                <span className="text-slate-500">W / L</span>
+                <span className="font-bold">{sessionWins} / {sessionTrades - sessionWins}</span>
               </div>
-              <div className="h-px bg-white/[0.06]" />
+              <div className="h-px bg-slate-100" />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Win Rate</span>
-                <span className="text-white font-bold">{winRate.toFixed(1)}%</span>
+                <span className="text-slate-500">Win Rate</span>
+                <span className="font-bold">{winRate.toFixed(1)}%</span>
               </div>
             </div>
             <button
               onClick={resetSession}
               className={`w-full h-12 rounded-2xl font-bold text-white text-sm transition active:scale-95 ${
-                sessionResult === "target" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-rose-500 hover:bg-rose-400"
+                sessionResult === "target" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-rose-600 hover:bg-rose-500"
               }`}
             >
               Continue Trading

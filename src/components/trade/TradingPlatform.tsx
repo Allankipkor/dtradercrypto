@@ -545,6 +545,8 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
     onPlaceTrade: (direction: "up" | "down", meta?: { digit?: number; contractType?: string; digitDirection?: string }) => placeTrade(direction, meta),
     settledQueue,
     appliedSignal,
+    price,
+    priceHistory,
   };
 
   if (sessionStatus === "loading") {
@@ -597,7 +599,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 
       {/* ── Header ── */}
       <header
-        className="shrink-0 border-b border-white/[0.07] bg-[#050a08]/80 backdrop-blur-md z-30"
+        className="shrink-0 border-b border-slate-200 md:border-white/[0.07] bg-white md:bg-[#050a08]/80 backdrop-blur-md z-30"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-14 sm:h-16 gap-2 max-w-screen-2xl mx-auto w-full">
@@ -606,12 +608,12 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0">
             <button
               onClick={() => setNavMenuOpen(true)}
-              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 min-h-[40px] min-w-[40px] flex items-center justify-center shrink-0"
+              className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 md:text-gray-400 md:hover:text-white md:hover:bg-white/5 min-h-[40px] min-w-[40px] flex items-center justify-center shrink-0"
             >
               <Menu className="w-5 h-5" />
             </button>
             <span className="text-[13px] xs:text-sm sm:text-lg font-extrabold tracking-tight select-none whitespace-nowrap">
-              <span className="text-[#3B82F6]">DTRADER</span><span className="text-white">CRYPTO</span>
+              <span className="text-[#3B82F6]">DTRADER</span><span className="text-slate-900 md:text-white">CRYPTO</span>
             </span>
           </div>
 
@@ -621,38 +623,38 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             <div className="relative">
               <button
                 onClick={() => setAccountDropdown((v) => !v)}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#0d1713] border border-white/[0.07] hover:border-white/20 transition min-h-[40px] max-w-[110px] xs:max-w-[140px] sm:max-w-[200px]"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-slate-100 md:bg-[#0d1713] border border-slate-200 md:border-white/[0.07] hover:border-slate-300 md:hover:border-white/20 transition min-h-[40px] max-w-[110px] xs:max-w-[140px] sm:max-w-[200px]"
               >
                 {/* Flag - circular, smaller */}
-                <span className="w-6 h-6 rounded-full bg-[#1a1f35] border border-white/10 flex items-center justify-center text-xs leading-none shrink-0">🇺🇸</span>
+                <span className="w-6 h-6 rounded-full bg-slate-200 md:bg-[#1a1f35] border border-slate-300 md:border-white/10 flex items-center justify-center text-xs leading-none shrink-0">🇺🇸</span>
                 <div className="text-left min-w-0">
-                  <div className="text-[11px] sm:text-xs font-bold tabular-nums leading-tight truncate">
+                  <div className="text-[11px] sm:text-xs font-bold tabular-nums leading-tight truncate text-slate-900 md:text-white">
                     ${displayBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  <div className="text-[9px] text-gray-500 leading-tight">
+                  <div className="text-[9px] text-slate-500 md:text-gray-500 leading-tight">
                     {accountMode === "real" ? "Real" : "Demo"}
                   </div>
                 </div>
-                <ChevronDown className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${accountDropdown ? "rotate-180" : ""}`} />
+                <ChevronDown className={`w-3 h-3 text-slate-500 md:text-gray-400 shrink-0 transition-transform ${accountDropdown ? "rotate-180" : ""}`} />
               </button>
 
               {/* Account switcher dropdown */}
               {accountDropdown && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setAccountDropdown(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-64 rounded-2xl border border-white/[0.07] bg-[#0d1713] shadow-2xl z-50 overflow-hidden">
+                  <div className="absolute top-full right-0 mt-2 w-64 rounded-2xl border border-slate-200 md:border-white/[0.07] bg-white md:bg-[#0d1713] shadow-2xl z-50 overflow-hidden">
                     {/* Real account */}
                     <button
                       onClick={() => { setAccountMode("real"); setAccountDropdown(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/5 transition"
+                      className="w-full flex items-center gap-3 px-4 py-4 hover:bg-slate-50 md:hover:bg-white/5 transition"
                     >
                       <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                         R
                       </div>
                       <div className="text-left flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white">Real Account</div>
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <span className="w-4 h-4 rounded-full bg-[#1a1f35] flex items-center justify-center text-[10px] leading-none">🇺🇸</span>
+                        <div className="text-sm font-semibold text-slate-900 md:text-white">Real Account</div>
+                        <div className="flex items-center gap-1 text-xs text-slate-500 md:text-gray-400">
+                          <span className="w-4 h-4 rounded-full bg-slate-200 md:bg-[#1a1f35] flex items-center justify-center text-[10px] leading-none">🇺🇸</span>
                           <span className="tabular-nums">
                             ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
@@ -663,20 +665,20 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                       )}
                     </button>
 
-                    <div className="h-px bg-white/[0.06] mx-4" />
+                    <div className="h-px bg-slate-100 md:bg-white/[0.06] mx-4" />
 
                     {/* Demo account */}
                     <button
                       onClick={() => { setAccountMode("demo"); setAccountDropdown(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/5 transition"
+                      className="w-full flex items-center gap-3 px-4 py-4 hover:bg-slate-50 md:hover:bg-white/5 transition"
                     >
                       <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                         D
                       </div>
                       <div className="text-left flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white">Demo Account</div>
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <span className="w-4 h-4 rounded-full bg-[#1a1f35] flex items-center justify-center text-[10px] leading-none">🇺🇸</span>
+                        <div className="text-sm font-semibold text-slate-900 md:text-white">Demo Account</div>
+                        <div className="flex items-center gap-1 text-xs text-slate-500 md:text-gray-400">
+                          <span className="w-4 h-4 rounded-full bg-slate-200 md:bg-[#1a1f35] flex items-center justify-center text-[10px] leading-none">🇺🇸</span>
                           <span className="tabular-nums">
                             ${demoBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
@@ -690,10 +692,10 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                     {/* Sign out row */}
                     {isAuthenticated && (
                       <>
-                        <div className="h-px bg-white/[0.06] mx-4" />
+                        <div className="h-px bg-slate-100 md:bg-white/[0.06] mx-4" />
                         <button
                           onClick={() => signOut({ callbackUrl: "/" })}
-                          className="w-full flex items-center gap-3 px-4 py-3.5 text-rose-400 hover:bg-white/5 transition"
+                          className="w-full flex items-center gap-3 px-4 py-3.5 text-rose-500 md:text-rose-400 hover:bg-slate-50 md:hover:bg-white/5 transition"
                         >
                           <LogOut className="w-4 h-4" />
                           <span className="text-sm font-medium">Sign out</span>
@@ -986,8 +988,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             </div>
           </div>
 
-          {/* Live last-digit tracker */}
-          <LiveDigitTracker price={price} priceHistory={priceHistory} />
+
 
           {/* Positions strip — md only (tablet, no sidebar) */}
           <div className="lg:hidden border-t border-white/[0.07] h-40 shrink-0 overflow-hidden bg-[#09100d]">
@@ -1002,7 +1003,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         </main>
 
         {/* Right: Order panel */}
-        <aside className="w-60 xl:w-72 2xl:w-80 border-l border-white/[0.07] flex flex-col shrink-0 bg-[#09100d]/75 backdrop-blur-lg overflow-y-auto">
+        <aside className="w-60 xl:w-72 2xl:w-80 border-l border-slate-200 flex flex-col shrink-0 bg-white overflow-y-auto">
           <OrderPanel {...orderPanelProps} />
         </aside>
       </div>
@@ -1011,95 +1012,71 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
       <div className="flex md:hidden flex-1 flex-col overflow-hidden min-h-0">
         {mobileTab === "trade" && (
           <>
-            {/* Scrollable content: contract tabs, chart, digit tracker, and
-                order panel (including Match/Differ) all scroll together as
-                one continuous list. Only the bottom nav stays fixed. */}
-            <div className="flex-1 overflow-y-auto overscroll-contain bg-[#09100d]" style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}>
-              {/* Decorative trade type label */}
-              <div className="flex border-b border-white/[0.07] bg-[#050a08] shrink-0 items-center px-4 py-2.5 justify-between min-h-[40px]">
-                <span className="text-[10px] xs:text-[11px] font-bold uppercase tracking-wider text-gray-400">Trade Type</span>
-                <span className="text-[10px] xs:text-[11px] font-bold text-white bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded-md">Over/Under</span>
+            {/* Scrollable content: contract tabs, digit tracker, and
+                order panel all scroll together. The bottom nav stays fixed. */}
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-[#eef2f6]" style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}>
+              {/* Hidden chart references to keep canvas refs alive without rendering visually */}
+              <div ref={mobileChartContainerRef} className="hidden">
+                <canvas ref={mobileCanvasRef} />
               </div>
 
-              {/* Chart card — asset info and price overlaid, TagBinary style */}
-              <div className="px-2 py-1.5 bg-[#050a08] shrink-0">
-                <div ref={mobileChartContainerRef} className="h-[22vh] min-h-[150px] max-h-[230px] relative bg-[#070809] rounded-xl border border-white/[0.07] overflow-hidden">
-                  <canvas ref={mobileCanvasRef} className="absolute inset-0 w-full h-full" />
-
-                  {/* Asset name + live price/change — overlaid top-left */}
-                  <div className="absolute top-2 left-2 z-10">
-                    <button
-                      onClick={() => setAssetDropdown((v) => !v)}
-                      className="flex items-center gap-2 bg-black/30 backdrop-blur-sm rounded-xl px-2.5 py-1.5 max-w-[78%]"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-[#3B82F6]/15 border border-[#3B82F6]/25 flex items-center justify-center shrink-0">
-                        <BarChart3 className="w-3 h-3 text-[#3B82F6]" />
+              {/* Asset Selector Widget */}
+              <div className="p-3">
+                <button
+                  onClick={() => setAssetDropdown((v) => !v)}
+                  className="w-full flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm text-left active:scale-[0.99] transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Asset Badge / Icon */}
+                    <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-slate-500 leading-none">100</span>
+                      <BarChart3 className="w-3.5 h-3.5 text-slate-600 mt-0.5" />
+                    </div>
+                    {/* Name and price change info */}
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-slate-900 leading-tight">
+                        {selectedAsset.name}
                       </div>
-                      <div className="text-left min-w-0">
-                        <div className="text-[11px] sm:text-xs font-bold text-white truncate leading-tight">
-                          {selectedAsset.name}
-                        </div>
-                        <div className="text-[9px] sm:text-[10px] text-emerald-400 flex items-center gap-1 leading-tight">
-                          <span className="tabular-nums">{price.toFixed(2)}</span>
-                          <span>+0.41 (0.00%)</span>
-                        </div>
+                      <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5">
+                        <span className="tabular-nums font-bold text-slate-800">{price.toFixed(2)}</span>
+                        <span className="text-rose-500 flex items-center gap-0.5">
+                          <span className="text-[10px] font-bold">▼</span> -0.20 (0.03%)
+                        </span>
                       </div>
-                      <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
-                    </button>
-                    {assetDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setAssetDropdown(false)} />
-                        <div className="absolute top-full left-0 mt-1 w-[min(80vw,18rem)] max-h-64 overflow-y-auto rounded-xl border border-white/[0.07] bg-[#0d1713] shadow-2xl z-50">
-                          {ASSETS.map((a) => (
-                            <button
-                              key={a.id}
-                              onClick={() => { setSelectedAsset(a); setAssetDropdown(false); }}
-                              className={`w-full px-4 py-3 text-left text-xs hover:bg-white/5 transition min-h-[44px] ${
-                                a.id === selectedAsset.id ? "text-[#3B82F6]" : "text-gray-400"
-                              }`}
-                            >
-                              <div className="font-semibold">{a.name}</div>
-                              <div className="text-[10px] text-gray-500">{a.payout}% payout</div>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* PRICE box — overlaid top-right */}
-                  <div className="absolute top-2 right-2 z-10 bg-black/30 backdrop-blur-sm rounded-xl px-3 py-1.5 text-right">
-                    <div className="text-[8px] sm:text-[9px] text-gray-400 font-semibold uppercase tracking-wider">Price</div>
-                    <div className="text-sm sm:text-base font-bold text-white tabular-nums leading-tight">
-                      {price.toFixed(2)}
                     </div>
                   </div>
-
-                  {/* Price ladder */}
-                  <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-20 flex flex-col justify-around items-end pr-1.5 sm:pr-2 pointer-events-none pt-12">
-                    {[2, 1, 0, -1, -2].map((offset) => {
-                      const val = (price + offset * 0.35).toFixed(2);
-                      const isCurrent = offset === 0;
-                      return (
-                        <div
-                          key={offset}
-                          className={`text-[10px] sm:text-[11px] tabular-nums font-semibold px-1.5 py-0.5 rounded ${
-                            isCurrent ? "bg-[#3B82F6] text-white" : "text-gray-400"
+                  <ChevronDown className="w-5 h-5 text-slate-400 shrink-0" />
+                </button>
+                {assetDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setAssetDropdown(false)} />
+                    <div className="absolute left-3 right-3 mt-1.5 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl z-50">
+                      {ASSETS.map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => { setSelectedAsset(a); setAssetDropdown(false); }}
+                          className={`w-full px-4 py-3.5 text-left text-xs hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition min-h-[44px] flex items-center justify-between ${
+                            a.id === selectedAsset.id ? "text-[#3B82F6] font-bold" : "text-slate-600"
                           }`}
                         >
-                          {val}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                          <div>
+                            <span className="font-semibold block">{a.name}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{a.payout}% payout</span>
+                          </div>
+                          {a.id === selectedAsset.id && (
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6]" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Live last-digit tracker — sits right under the chart, scrolls with it */}
-              <LiveDigitTracker price={price} priceHistory={priceHistory} />
+
 
               {/* Order panel */}
-              <div className="border-t border-white/[0.07]">
+              <div className="p-3">
                 <OrderPanel {...orderPanelProps} compact />
               </div>
             </div>
@@ -1107,25 +1084,25 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         )}
 
         {mobileTab === "positions" && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#09100d]" style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}>
+          <div className="flex-1 flex flex-col min-h-0 bg-[#eef2f6]" style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}>
             <PositionsPanel
               positions={visiblePositions}
               closedTab={closedTab}
               onTabChange={setClosedTab}
               timeLeft={timeLeft}
-              className="h-full"
+              className="h-full bg-white text-slate-800"
             />
           </div>
         )}
 
         {mobileTab === "ai" && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#09100d] px-6 text-center" style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#eef2f6] px-6 text-center" style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}>
             <div className="w-16 h-16 rounded-full bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center">
               <Sparkles className="w-8 h-8 text-[#3B82F6]" />
             </div>
             <div>
-              <p className="text-white font-semibold text-base mb-1">AI</p>
-              <p className="text-gray-400 text-xs leading-relaxed">
+              <p className="text-slate-800 font-semibold text-base mb-1">AI</p>
+              <p className="text-slate-500 text-xs leading-relaxed">
                 Scan live tick patterns to find the statistically strongest entry across markets.
               </p>
             </div>
@@ -1138,15 +1115,15 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           </div>
         )}
 
-        {/* Bottom nav — floats fixed over scrolling content, never part of document flow */}
+        {/* Bottom nav — floats fixed over scrolling content */}
         <nav
-          className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-white/[0.07] bg-[#050a08] shadow-[0_-4px_16px_rgba(0,0,0,0.4)]"
+          className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-slate-200 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.04)]"
           style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           <button
             onClick={() => setMobileTab("trade")}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 sm:py-3 min-h-[56px] transition ${
-              mobileTab === "trade" ? "text-[#3B82F6]" : "text-gray-500"
+              mobileTab === "trade" ? "text-[#3B82F6]" : "text-slate-400"
             }`}
           >
             <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -1157,18 +1134,18 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
             className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] transition"
           >
             <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition ${
-              mobileTab === "ai" ? "bg-[#3B82F6]" : "bg-[#0d1713]"
+              mobileTab === "ai" ? "bg-[#3B82F6]" : "bg-slate-100"
             }`}>
-              <Sparkles className="w-5 h-5 text-white" />
+              <Sparkles className={`w-5 h-5 ${mobileTab === "ai" ? "text-white" : "text-slate-500"}`} />
             </div>
-            <span className={`text-[10px] sm:text-xs font-semibold ${mobileTab === "ai" ? "text-[#3B82F6]" : "text-gray-500"}`}>
+            <span className={`text-[10px] sm:text-xs font-semibold ${mobileTab === "ai" ? "text-[#3B82F6]" : "text-slate-400"}`}>
               AI
             </span>
           </button>
           <button
             onClick={() => setMobileTab("positions")}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 sm:py-3 min-h-[56px] transition relative ${
-              mobileTab === "positions" ? "text-[#3B82F6]" : "text-gray-500"
+              mobileTab === "positions" ? "text-[#3B82F6]" : "text-slate-400"
             }`}
           >
             <LayoutList className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -1195,67 +1172,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 }
 
 // ── LiveDigitTracker ──
-// Shows the last-digit frequency distribution from real price history,
-// with a moving cursor pointing at whichever digit the current price tick landed on.
-function LiveDigitTracker({ price, priceHistory }: { price: number; priceHistory: number[] }) {
-  const getLastDigit = (val: number) => {
-    // Use 2 decimal places, take the last digit of the cents value
-    const cents = Math.round(val * 100);
-    return cents % 10;
-  };
 
-  const currentDigit = getLastDigit(price);
-
-  // Compute real frequency % from the visible price history window
-  const counts = Array(10).fill(0);
-  priceHistory.forEach((p) => {
-    counts[getLastDigit(p)]++;
-  });
-  const total = priceHistory.length || 1;
-  const percentages = counts.map((c) => (c / total) * 100);
-  const maxPct = Math.max(...percentages);
-
-  return (
-    <div className="px-2.5 pt-2.5 pb-2 bg-[#050a08] border-b border-white/[0.06] shrink-0">
-      <div className="relative">
-        {/* Moving cursor arrow */}
-        <div
-          className="absolute -top-0.5 flex flex-col items-center transition-all duration-300 ease-out"
-          style={{ left: `calc(${(currentDigit / 9) * 100}% - 5px)` }}
-        >
-          <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-l-transparent border-r-transparent border-b-[#3B82F6]" />
-        </div>
-
-        <div className="flex justify-between gap-1 pt-2.5">
-          {percentages.map((pct, d) => {
-            const isCurrent = d === currentDigit;
-            const isHot = pct === maxPct && maxPct > 0;
-            return (
-              <div key={d} className="flex flex-col items-center gap-0.5 flex-1">
-                <div
-                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-bold border-2 transition-all ${
-                    isCurrent
-                      ? "bg-[#3B82F6] border-[#3B82F6] text-white scale-110 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
-                      : isHot
-                        ? "bg-transparent border-emerald-500 text-emerald-400"
-                        : "bg-transparent border-white/15 text-gray-400"
-                  }`}
-                >
-                  {d}
-                </div>
-                <span className={`text-[8px] sm:text-[9px] font-bold tabular-nums ${
-                  d === 0 ? "text-rose-400" : isCurrent ? "text-[#60a5fa]" : "text-gray-500"
-                }`}>
-                  {pct.toFixed(1)}%
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── EntryScannerModal ──
 // Walks every asset with a few real live ticks each, scores them for the
