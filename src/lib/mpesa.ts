@@ -69,7 +69,7 @@ export async function initiateStkPush(params: {
   let response;
   try {
     response = await axios.post<PayheroInitiateResponse>(
-      "https://backend.payhero.co.ke/api/v2/payments",
+      "https://backend.payhero.co.ke/api/v2/payments/initiate-stk-push",
       {
         amount: Math.ceil(params.amountKes),
         phone_number: formatPhone(params.phone),
@@ -86,6 +86,7 @@ export async function initiateStkPush(params: {
       }
     );
   } catch (err) {
+    console.error("[payhero-stk-push] API Error:", axios.isAxiosError(err) ? err.response?.data : err);
     if (axios.isAxiosError(err) && err.response?.data) {
       const data = err.response.data as PayheroInitiateResponse;
       throw new Error(data.message || data.status || "STK push failed");
