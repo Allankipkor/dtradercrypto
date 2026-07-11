@@ -171,3 +171,7 @@ export function usdToKes(usd: number): number {
 export function isMpesaConfigured(): boolean {
   return !!(process.env.PAYHERO_API_USERNAME && process.env.PAYHERO_API_PASSWORD && process.env.PAYHERO_CHANNEL_ID);
 }
+
+export function isMpesaAutoConfirmEnabled(): boolean {
+  return process.env.MPESA_AUTO_CONFIRM === "true";
+}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { initiateStkPush, isMpesaConfigured, usdToKes } from "@/lib/mpesa";
+import { initiateStkPush, isMpesaConfigured, usdToKes, isMpesaAutoConfirmEnabled } from "@/lib/mpesa";
 import {
   generateDepositReference,
   getUsdtDepositAddress,
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const reference = generateDepositReference();
 
     if (method === "mpesa") {
-      if (!isMpesaConfigured()) {
+      if (!isMpesaConfigured() && !isMpesaAutoConfirmEnabled()) {
         return NextResponse.json(
           { error: "M-Pesa not configured. Add PAYHERO credentials to .env" },
           { status: 503 }
@@ -71,6 +71,43 @@ export async function POST(req: Request) {
           metadata: JSON.stringify({ amountKes, phone: mpesaPhone }),
         },
       });
+
+      if (isMpesaAutoConfirmEnabled()) {
+        await prisma.$transaction([
+          prisma.transaction.update({
+            where: { id: transaction.id },
+            data: {
+              status: "completed",
+              metadata: JSON.stringify({
+                amountKes,
+                phone: mpesaPhone,
+                autoConfirmed: true,
+                checkoutRequestId: `MOCK_CK_${reference}`,
+                merchantRequestId: `MOCK_MR_${reference}`,
+              }),
+            },
+          }),
+          prisma.user.update({
+            where: { id: session.user.id },
+            data: { balance: { increment: amount } },
+          }),
+        ]);
+
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { balance: true },
+        });
+
+        return NextResponse.json({
+          transactionId: transaction.id,
+          method: "mpesa",
+          message: `Deposit of $${amount} mock auto-confirmed (dev mode)!`,
+          amountKes,
+          checkoutRequestId: `MOCK_CK_${reference}`,
+          status: "completed",
+          balance: updatedUser?.balance,
+        });
+      }
 
       try {
         const stk = await initiateStkPush({

@@ -84,6 +84,9 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
         }
       } else {
         setMessage(data.message);
+        if (data.status === "completed" && data.balance != null) {
+          onSuccess(data.balance);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Deposit failed");
