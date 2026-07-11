@@ -19,16 +19,37 @@ export async function settleExpiredTrades(userId?: string) {
     };
 
     let won = false;
+    const finalDigit = getLastDigit(closePrice);
+
     if (trade.contractType.startsWith("Over/Under")) {
       const parts = trade.contractType.split("|");
       const digitDirection = parts[1] || (trade.direction === "up" ? "Over" : "Under");
       const predictedDigit = parts[2] !== undefined ? parseInt(parts[2], 10) : 0;
-      const finalDigit = getLastDigit(closePrice);
 
       if (digitDirection === "Over") {
         won = finalDigit > predictedDigit;
       } else if (digitDirection === "Under") {
         won = finalDigit < predictedDigit;
+      }
+    } else if (trade.contractType.startsWith("Even/Odd")) {
+      const parts = trade.contractType.split("|");
+      const subType = parts[1] || (trade.direction === "up" ? "Even" : "Odd");
+      const isEven = finalDigit % 2 === 0;
+
+      if (subType === "Even") {
+        won = isEven;
+      } else {
+        won = !isEven;
+      }
+    } else if (trade.contractType.startsWith("Match/Differ")) {
+      const parts = trade.contractType.split("|");
+      const subType = parts[1] || (trade.direction === "up" ? "Match" : "Differ");
+      const predictedDigit = parts[2] !== undefined ? parseInt(parts[2], 10) : 0;
+
+      if (subType === "Match") {
+        won = finalDigit === predictedDigit;
+      } else {
+        won = finalDigit !== predictedDigit;
       }
     } else {
       won =

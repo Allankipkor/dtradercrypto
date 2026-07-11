@@ -108,7 +108,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   const [appliedSignal, setAppliedSignal] = useState<{ digit: number; nonce: number } | null>(null);
 
   const handleUseSignal = (
-    market: "Even/Odd" | "Over/Under" | "Match/Differ",
+    market: ScanMarket,
     direction: string,
     digit: number | undefined,
     assetId: string
@@ -355,16 +355,34 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         if (p.status !== "open" || p.expiry > now) return p;
         
         let won = false;
+        const finalDigit = getLastDigit(price);
         if (p.type.startsWith("Over/Under")) {
           const parts = p.type.split("|");
           const digitDirection = parts[1] || (p.direction === "up" ? "Over" : "Under");
           const predictedDigit = parts[2] !== undefined ? parseInt(parts[2], 10) : 0;
-          const finalDigit = getLastDigit(price);
           
           if (digitDirection === "Over") {
             won = finalDigit > predictedDigit;
           } else if (digitDirection === "Under") {
             won = finalDigit < predictedDigit;
+          }
+        } else if (p.type.startsWith("Even/Odd")) {
+          const parts = p.type.split("|");
+          const subType = parts[1] || (p.direction === "up" ? "Even" : "Odd");
+          const isEven = finalDigit % 2 === 0;
+          if (subType === "Even") {
+            won = isEven;
+          } else {
+            won = !isEven;
+          }
+        } else if (p.type.startsWith("Match/Differ")) {
+          const parts = p.type.split("|");
+          const subType = parts[1] || (p.direction === "up" ? "Match" : "Differ");
+          const predictedDigit = parts[2] !== undefined ? parseInt(parts[2], 10) : 0;
+          if (subType === "Match") {
+            won = finalDigit === predictedDigit;
+          } else {
+            won = finalDigit !== predictedDigit;
           }
         } else {
           won = p.direction === "up" ? price > p.openPrice : price < p.openPrice;
@@ -916,7 +934,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           {/* Decorative trade type label */}
           <div className="flex border-b border-white/[0.07] bg-[#050a08] shrink-0 items-center px-4 py-3 justify-between">
             <span className="text-[11px] xl:text-xs font-bold uppercase tracking-wider text-gray-400">Trade Type</span>
-            <span className="text-[11px] xl:text-xs font-bold text-white bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded-md">Over/Under</span>
+            <span className="text-[11px] xl:text-xs font-bold text-white bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded-md">{contractType}</span>
           </div>
           <div
             ref={chartContainerRef}
@@ -1178,7 +1196,14 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 // Walks every asset with a few real live ticks each, scores them for the
 // selected market type, and surfaces the single best asset + direction —
 // mirroring TagBinary's "Deep Scan for Best Market" tool with real data.
-type ScanMarket = "Even/Odd" | "Over/Under" | "Match/Differ";
+type ScanMarket =
+  | "Even/Odd"
+  | "Match/Differ"
+  | "Over/Under"
+  | "Rise/Fall"
+  | "Higher/Lower"
+  | "Touch/No Touch"
+  | "Multipliers";
 
 interface AssetScanResult {
   assetId: string;
@@ -1218,14 +1243,25 @@ function scoreDigits(market: ScanMarket, digits: number[]): { direction: string;
     return { direction, digit: best.digit, confidence: Math.max(best.overPct, best.underPct) };
   }
 
-  // Match/Differ — least-frequent digit gets the Match call (best edge, since
-  // Match pays far more than Differ).
-  const counts = Array(10).fill(0);
-  digits.forEach((d) => counts[d]++);
-  const minCount = Math.min(...counts);
-  const chosenDigit = counts.findIndex((c) => c === minCount);
-  const confidence = 100 - (minCount / total) * 100;
-  return { direction: "Match", digit: chosenDigit, confidence };
+  if (market === "Match/Differ") {
+    const counts = Array(10).fill(0);
+    digits.forEach((d) => counts[d]++);
+    const minCount = Math.min(...counts);
+    const chosenDigit = counts.findIndex((c) => c === minCount);
+    const confidence = 100 - (minCount / total) * 100;
+    return { direction: "Match", digit: chosenDigit, confidence };
+  }
+
+  // Rise/Fall, Higher/Lower, Touch/No Touch, Multipliers
+  let upCount = 0;
+  for (let i = 1; i < digits.length; i++) {
+    if (digits[i] > digits[i - 1]) upCount++;
+  }
+  const totalCount = digits.length - 1 || 1;
+  const upPct = (upCount / totalCount) * 100;
+  const downPct = 100 - upPct;
+  const direction = upPct >= downPct ? "Up" : "Down";
+  return { direction, confidence: Math.max(upPct, downPct) };
 }
 
 async function fetchAssetTicks(assetId: string, count: number): Promise<number[]> {
@@ -1322,7 +1358,13 @@ function EntryScannerModal({
               disabled={scanning}
               className="w-full bg-[#0d1713] border border-white/[0.07] rounded-xl px-3.5 py-3 text-sm text-white outline-none focus:border-[#3B82F6]/50 appearance-none disabled:opacity-50"
             >
+              <option value="Even/Odd">Even / Odd</option>
+              <option value="Match/Differ">Match / Differ</option>
               <option value="Over/Under">Over / Under</option>
+              <option value="Rise/Fall">Rise / Fall</option>
+              <option value="Higher/Lower">Higher / Lower</option>
+              <option value="Touch/No Touch">Touch / No Touch</option>
+              <option value="Multipliers">Multipliers</option>
             </select>
           </div>
 

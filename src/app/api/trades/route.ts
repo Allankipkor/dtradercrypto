@@ -6,7 +6,15 @@ import { getAsset } from "@/lib/assets";
 import { tickPrice } from "@/lib/prices";
 import { settleAndFetchTrades } from "@/lib/trades";
 
-const CONTRACT_TYPES = ["Over/Under"] as const;
+const CONTRACT_TYPES = [
+  "Even/Odd",
+  "Match/Differ",
+  "Over/Under",
+  "Rise/Fall",
+  "Higher/Lower",
+  "Touch/No Touch",
+  "Multipliers",
+] as const;
 
 const placeSchema = z.object({
   assetId: z.string(),
@@ -76,7 +84,9 @@ export async function POST(req: Request) {
     const enrichedContractType =
       digit !== undefined && digitDirection
         ? `${contractType}|${digitDirection}|${digit}`
-        : contractType;
+        : digitDirection
+          ? `${contractType}|${digitDirection}`
+          : contractType;
 
     const [, trade] = await prisma.$transaction([
       prisma.user.update({

@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus, Square, Zap, XCircle, CheckCircle2, ChevronRight } from "lucide-react";
 import type { Asset } from "@/lib/assets";
 
-const CONTRACT_TYPES = ["Over/Under"] as const;
+const CONTRACT_TYPES = [
+  "Even/Odd",
+  "Match/Differ",
+  "Over/Under",
+  "Rise/Fall",
+  "Higher/Lower",
+  "Touch/No Touch",
+  "Multipliers",
+] as const;
 const STAKE_PRESETS = [1, 5, 10, 25, 50, 100];
 
 const OVER_UNDER_PAYOUTS: Record<number, { over: number; under: number }> = {
@@ -150,6 +158,7 @@ export function OrderPanel({
   stake,
   balance,
   tradeError,
+  onContractTypeChange,
   onStakeChange,
   onPlaceTrade,
   settledQueue,
@@ -159,6 +168,7 @@ export function OrderPanel({
 }: OrderPanelProps) {
   const [tradeMode, setTradeMode] = useState<"auto" | "manual">("auto");
   const [selectedDigit, setSelectedDigit] = useState(5);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Apply a digit recommended by the AI Entry Scanner whenever a new signal arrives
   useEffect(() => {
@@ -368,18 +378,20 @@ export function OrderPanel({
 
   const getLabels = (): [string, string] => {
     switch (contractType) {
-      case "Even/Odd" as unknown as ContractType:     return ["Even", "Odd"];
+      case "Even/Odd":     return ["Even", "Odd"];
       case "Over/Under":   return ["Over", "Under"];
-      case "Match/Differ" as unknown as ContractType: return ["Match", "Differ"];
-      default: return ["Over", "Under"];
+      case "Match/Differ": return ["Match", "Differ"];
+      case "Higher/Lower": return ["Higher", "Lower"];
+      case "Touch/No Touch": return ["Touch", "No Touch"];
+      default:             return ["Buy", "Sell"];
     }
   };
 
 
   const getPayoutSplit = (): { upPct: number; downPct: number } => {
     switch (contractType) {
-      case "Match/Differ" as unknown as ContractType: return { upPct: 850, downPct: 5 };
-      case "Even/Odd" as unknown as ContractType:     return { upPct: 95, downPct: 95 };
+      case "Match/Differ": return { upPct: 850, downPct: 5 };
+      case "Even/Odd":     return { upPct: 95, downPct: 95 };
       case "Over/Under": {
         const payouts = OVER_UNDER_PAYOUTS[selectedDigit] || { over: 0, under: 0 };
         return {
@@ -387,7 +399,7 @@ export function OrderPanel({
           downPct: payouts.under,
         };
       }
-      default: return { upPct: 0, downPct: 0 };
+      default: return { upPct: 95, downPct: 95 };
     }
   };
 
@@ -531,24 +543,26 @@ export function OrderPanel({
       )}
 
       {/* ── 1. Digit selector circular progress rings stats grid (2x5) ── */}
-      <div className="space-y-2.5 shrink-0">
-        {/* Row 1: 0 - 4 */}
-        <div className="flex justify-between items-center gap-1.5 px-2">
-          {Array.from({ length: 5 }, (_, i) => i).map((d) => renderCircularDigit(d))}
-        </div>
-        {/* Row 2: 5 - 9 with side chevrons */}
-        <div className="flex items-center gap-1 px-1">
-          <button className="text-slate-400 hover:text-slate-600 font-extrabold text-[11px] px-1 active:scale-90 transition shrink-0 select-none">
-            «
-          </button>
-          <div className="flex-1 flex justify-between items-center gap-1.5">
-            {Array.from({ length: 5 }, (_, i) => i + 5).map((d) => renderCircularDigit(d))}
+      {(contractType === "Over/Under" || contractType === "Match/Differ") && (
+        <div className="space-y-2.5 shrink-0">
+          {/* Row 1: 0 - 4 */}
+          <div className="flex justify-between items-center gap-1.5 px-2">
+            {Array.from({ length: 5 }, (_, i) => i).map((d) => renderCircularDigit(d))}
           </div>
-          <button className="text-slate-400 hover:text-slate-600 font-extrabold text-[11px] px-1 active:scale-90 transition shrink-0 select-none">
-            »
-          </button>
+          {/* Row 2: 5 - 9 with side chevrons */}
+          <div className="flex items-center gap-1 px-1">
+            <button className="text-slate-400 hover:text-slate-600 font-extrabold text-[11px] px-1 active:scale-90 transition shrink-0 select-none">
+              «
+            </button>
+            <div className="flex-1 flex justify-between items-center gap-1.5">
+              {Array.from({ length: 5 }, (_, i) => i + 5).map((d) => renderCircularDigit(d))}
+            </div>
+            <button className="text-slate-400 hover:text-slate-600 font-extrabold text-[11px] px-1 active:scale-90 transition shrink-0 select-none">
+              »
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── 2. Drag handle & Learn link ── */}
       <div className="flex flex-col items-center py-0.5 shrink-0 select-none">
@@ -558,46 +572,76 @@ export function OrderPanel({
         </button>
       </div>
 
-      {/* ── 3. Over/Under market type dropdown ── */}
-      <div className="bg-[#f8fafc] border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm cursor-pointer hover:bg-slate-100/70 transition shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex gap-0.5 select-none shrink-0">
-            <div className="w-5.5 h-5.5 bg-rose-50 border border-rose-100 rounded flex items-center justify-center text-rose-500 shadow-sm">
-              <svg viewBox="0 0 12 12" className="w-3 h-3 stroke-rose-600" fill="none" strokeWidth="1.8">
-                <line x1="2" y1="10" x2="10" y2="10" />
-                <path d="M4 2h6v6M10 2L3 9" />
-              </svg>
+      {/* ── 3. Market type dropdown ── */}
+      <div className="relative shrink-0">
+        <div
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="bg-[#f8fafc] border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm cursor-pointer hover:bg-slate-100/70 transition shrink-0"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex gap-0.5 select-none shrink-0">
+              <div className="w-5.5 h-5.5 bg-rose-50 border border-rose-100 rounded flex items-center justify-center text-rose-500 shadow-sm">
+                <svg viewBox="0 0 12 12" className="w-3 h-3 stroke-rose-600" fill="none" strokeWidth="1.8">
+                  <line x1="2" y1="10" x2="10" y2="10" />
+                  <path d="M4 2h6v6M10 2L3 9" />
+                </svg>
+              </div>
+              <div className="w-5.5 h-5.5 bg-rose-50 border border-rose-100 rounded flex items-center justify-center text-rose-500 shadow-sm">
+                <svg viewBox="0 0 12 12" className="w-3 h-3 stroke-rose-600" fill="none" strokeWidth="1.8">
+                  <line x1="2" y1="2" x2="10" y2="2" />
+                  <path d="M8 10H2V4M2 10l7-7" />
+                </svg>
+              </div>
             </div>
-            <div className="w-5.5 h-5.5 bg-rose-50 border border-rose-100 rounded flex items-center justify-center text-rose-500 shadow-sm">
-              <svg viewBox="0 0 12 12" className="w-3 h-3 stroke-rose-600" fill="none" strokeWidth="1.8">
-                <line x1="2" y1="2" x2="10" y2="2" />
-                <path d="M8 10H2V4M2 10l7-7" />
-              </svg>
-            </div>
+            <span className="text-sm font-bold text-slate-800">{contractType}</span>
           </div>
-          <span className="text-sm font-bold text-slate-800">Over/Under</span>
+          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${dropdownOpen ? "rotate-90" : ""}`} />
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-400 animate-pulse" />
+
+        {dropdownOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+            <div className="absolute top-full left-0 right-0 mt-1.5 rounded-2xl border border-slate-200 bg-white shadow-2xl z-50 py-1.5 max-h-60 overflow-y-auto">
+              {CONTRACT_TYPES.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    onContractTypeChange(t);
+                    setDropdownOpen(false);
+                  }}
+                  className={`w-full px-4 py-3 text-left text-xs font-bold transition hover:bg-slate-50 flex items-center justify-between ${
+                    t === contractType ? "text-[#3B82F6] bg-blue-50/50" : "text-slate-700"
+                  }`}
+                >
+                  <span>{t}</span>
+                  {t === contractType && <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── 4. Digit tabs row (2x5 flat selector) ── */}
-      <div className="bg-[#f1f5f9] border border-slate-200 rounded-xl p-1 shadow-inner shrink-0">
-        <div className="grid grid-cols-5 gap-1 rounded-lg overflow-hidden bg-slate-200/40 p-0.5">
-          {Array.from({ length: 10 }, (_, d) => d).map((d) => (
-            <button
-              key={d}
-              onClick={() => setSelectedDigit(d)}
-              className={`h-10 rounded-lg text-sm font-bold transition-all duration-150 ${
-                d === selectedDigit
-                  ? "bg-[#cbd5e1] text-slate-900 shadow-sm border border-slate-300"
-                  : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/50"
-              }`}
-            >
-              {d}
-            </button>
-          ))}
+      {(contractType === "Over/Under" || contractType === "Match/Differ") && (
+        <div className="bg-[#f1f5f9] border border-slate-200 rounded-xl p-1 shadow-inner shrink-0">
+          <div className="grid grid-cols-5 gap-1 rounded-lg overflow-hidden bg-slate-200/40 p-0.5">
+            {Array.from({ length: 10 }, (_, d) => d).map((d) => (
+              <button
+                key={d}
+                onClick={() => setSelectedDigit(d)}
+                className={`h-10 rounded-lg text-sm font-bold transition-all duration-150 ${
+                  d === selectedDigit
+                    ? "bg-[#cbd5e1] text-slate-900 shadow-sm border border-slate-300"
+                    : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/50"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── 5. Stake Row ── */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col shrink-0">
