@@ -76,7 +76,15 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   const [positions, setPositions] = useState<Position[]>([]);
   const [tradeError, setTradeError] = useState("");
   const [price, setPrice] = useState(1000);
-  const [priceHistory, setPriceHistory] = useState<number[]>(Array(60).fill(1000));
+  const [priceHistory, setPriceHistory] = useState<number[]>(() => {
+    const arr: number[] = [];
+    let p = 1000;
+    for (let i = 0; i < 60; i++) {
+      p += (Math.random() - 0.5) * 2;
+      arr.push(p);
+    }
+    return arr;
+  });
   const [mobileTab, setMobileTab] = useState<MobileTab>("trade");
   const [assetDropdown, setAssetDropdown] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
@@ -154,9 +162,41 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   }, []);
 
   useEffect(() => {
+    // 1. Fetch initial bulk prices (60 ticks) to pre-populate history
+    fetch(`/api/prices?assetId=${selectedAsset.id}&tick=true&count=60`)
+      .then((r) => {
+        if (!r.ok) throw new Error("HTTP error");
+        return r.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data?.prices) && data.prices.length > 0) {
+          setPriceHistory(data.prices);
+          setPrice(data.prices[data.prices.length - 1]);
+        }
+      })
+      .catch(() => {
+        // Fallback: generate simulated random walk around current price
+        setPrice((p) => {
+          const start = p || 1000;
+          const fallbackHistory = [];
+          let curr = start;
+          const volatility = selectedAsset.id.includes("100") ? 2.5 : selectedAsset.id.includes("75") ? 1.5 : 0.5;
+          for (let i = 0; i < 60; i++) {
+            curr += (Math.random() - 0.5) * volatility;
+            fallbackHistory.push(curr);
+          }
+          setPriceHistory(fallbackHistory);
+          return curr;
+        });
+      });
+
+    // 2. Poll for single tick updates every 800ms
     const tickPrice = () => {
       fetch(`/api/prices?assetId=${selectedAsset.id}&tick=true`)
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error("HTTP error");
+          return r.json();
+        })
         .then((data) => {
           if (data?.price) {
             setPrice(data.price);
@@ -176,7 +216,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           });
         });
     };
-    tickPrice();
+
     const priceInterval = setInterval(tickPrice, 800);
     return () => clearInterval(priceInterval);
   }, [isAuthenticated, selectedAsset.id]);
