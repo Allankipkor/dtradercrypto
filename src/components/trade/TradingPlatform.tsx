@@ -1265,14 +1265,20 @@ function scoreDigits(market: ScanMarket, digits: number[]): { direction: string;
 }
 
 async function fetchAssetTicks(assetId: string, count: number): Promise<number[]> {
-  const requests = Array.from({ length: count }, () =>
-    fetch(`/api/prices?assetId=${assetId}&tick=true`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => (typeof data?.price === "number" ? data.price : null))
-      .catch(() => null)
-  );
-  const results = await Promise.all(requests);
-  return results.filter((p): p is number => p !== null);
+  try {
+    const res = await fetch(`/api/prices?assetId=${assetId}&tick=true&count=${count}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (Array.isArray(data?.prices)) {
+      return data.prices;
+    }
+    if (typeof data?.price === "number") {
+      return [data.price];
+    }
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 function EntryScannerModal({
