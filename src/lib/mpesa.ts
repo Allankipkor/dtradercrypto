@@ -88,8 +88,14 @@ export async function initiateStkPush(params: {
   } catch (err) {
     console.error("[payhero-stk-push] API Error:", axios.isAxiosError(err) ? err.response?.data : err);
     if (axios.isAxiosError(err) && err.response?.data) {
-      const data = err.response.data as any;
-      const detail = typeof data === "string" ? data : (data.message || data.status || data.error || JSON.stringify(data));
+      const data = err.response.data as unknown;
+      let detail = "Unknown error";
+      if (typeof data === "string") {
+        detail = data;
+      } else if (data && typeof data === "object") {
+        const obj = data as Record<string, unknown>;
+        detail = String(obj.message || obj.status || obj.error || JSON.stringify(obj));
+      }
       throw new Error(`PayHero: ${detail}`);
     }
     throw err;
