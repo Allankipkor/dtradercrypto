@@ -69,7 +69,7 @@ export async function initiateStkPush(params: {
   let response;
   try {
     response = await axios.post<PayheroInitiateResponse>(
-      "https://backend.payhero.co.ke/api/v2/payments/initiate-stk-push",
+      "https://backend.payhero.co.ke/api/v2/payments",
       {
         amount: Math.ceil(params.amountKes),
         phone_number: formatPhone(params.phone),
