@@ -88,8 +88,9 @@ export async function initiateStkPush(params: {
   } catch (err) {
     console.error("[payhero-stk-push] API Error:", axios.isAxiosError(err) ? err.response?.data : err);
     if (axios.isAxiosError(err) && err.response?.data) {
-      const data = err.response.data as PayheroInitiateResponse;
-      throw new Error(data.message || data.status || "STK push failed");
+      const data = err.response.data as any;
+      const detail = typeof data === "string" ? data : (data.message || data.status || data.error || JSON.stringify(data));
+      throw new Error(`PayHero: ${detail}`);
     }
     throw err;
   }
