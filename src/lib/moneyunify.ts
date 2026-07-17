@@ -7,13 +7,10 @@ import axios from "axios";
 export function formatZambianPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("260") && digits.length === 12) {
-    return digits;
+    return `0${digits.slice(3)}`;
   }
-  if (digits.startsWith("0") && digits.length === 10) {
-    return `260${digits.slice(1)}`;
-  }
-  if (digits.length === 9 && !digits.startsWith("260")) {
-    return `260${digits}`;
+  if (digits.length === 9 && !digits.startsWith("0")) {
+    return `0${digits}`;
   }
   return digits;
 }
