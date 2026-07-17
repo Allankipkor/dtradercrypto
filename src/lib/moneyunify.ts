@@ -59,6 +59,8 @@ export async function initiateMoneyUnifyPayment(params: {
   body.append("from_payer", formattedPhone);
   body.append("amount", String(params.amountZmw));
   body.append("auth_id", authId);
+
+  console.log(`[moneyunify-debug] Request details: from_payer="${formattedPhone}", amount="${params.amountZmw}", auth_id_prefix="${authId.slice(0, 4)}", auth_id_length=${authId.length}, has_quotes=${authId.startsWith('"') || authId.startsWith("'") || authId.endsWith('"') || authId.endsWith("'")}`);
  
   try {
     const response = await axios.post<MoneyUnifyInitiateResponse>(
