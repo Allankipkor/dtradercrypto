@@ -122,7 +122,7 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
         body: JSON.stringify({
           method: tab,
           amount,
-          phone: tab === "mpesa" ? phone : undefined,
+          phone: tab === "mpesa" || tab === "moneyunify" ? phone : undefined,
         }),
       });
       const data = await res.json();
