@@ -55,18 +55,19 @@ export async function initiateMoneyUnifyPayment(params: {
 
   const formattedPhone = formatZambianPhone(params.phone);
  
+  const body = new URLSearchParams();
+  body.append("from_payer", formattedPhone);
+  body.append("amount", String(params.amountZmw));
+  body.append("auth_id", authId);
+ 
   try {
     const response = await axios.post<MoneyUnifyInitiateResponse>(
       "https://api.moneyunify.one/payments/request",
-      {
-        from_payer: formattedPhone,
-        amount: params.amountZmw,
-        auth_id: authId,
-      },
+      body.toString(),
       {
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
       }
     );
@@ -107,7 +108,7 @@ export async function initiateMoneyUnifyPayment(params: {
 /**
  * VERIFY MONEYUNIFY PAYMENT STATUS
  * POST https://api.moneyunify.one/payments/verify
- * Content-Type: application/json
+ * Content-Type: application/x-www-form-urlencoded
  */
 export async function verifyMoneyUnifyPayment(moneyUnifyTxId: string) {
   const authId = process.env.MONEYUNIFY_AUTH_ID;
@@ -115,16 +116,17 @@ export async function verifyMoneyUnifyPayment(moneyUnifyTxId: string) {
     throw new Error("MoneyUnify credentials not configured (MONEYUNIFY_AUTH_ID missing)");
   }
 
+  const body = new URLSearchParams();
+  body.append("auth_id", authId);
+  body.append("transaction_id", moneyUnifyTxId);
+
   const response = await axios.post<MoneyUnifyVerifyResponse>(
     "https://api.moneyunify.one/payments/verify",
-    {
-      auth_id: authId,
-      transaction_id: moneyUnifyTxId,
-    },
+    body.toString(),
     {
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
       validateStatus: () => true,
     }
