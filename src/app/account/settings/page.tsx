@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, User, Phone, Mail, Lock, Check } from "lucide-react";
+import { ChevronLeft, User, Phone, Mail, Lock, Check, Globe } from "lucide-react";
 
 interface Profile {
   email: string;
   name: string | null;
   phone: string | null;
+  country: string | null;
 }
 
 export default function AccountSettingsPage() {
@@ -15,6 +16,7 @@ export default function AccountSettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
@@ -36,6 +38,7 @@ export default function AccountSettingsPage() {
           setProfile(data.user);
           setName(data.user.name ?? "");
           setPhone(data.user.phone ?? "");
+          setCountry(data.user.country ?? "");
         }
       })
       .finally(() => setLoading(false));
@@ -49,7 +52,7 @@ export default function AccountSettingsPage() {
       const res = await fetch("/api/user/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({ name, phone, country: country || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
@@ -139,6 +142,20 @@ export default function AccountSettingsPage() {
               placeholder="07XX XXX XXX"
               className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#3B82F6]/50"
             />
+          </div>
+          <div>
+            <label className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+              <Globe className="w-3.5 h-3.5" /> Country / Region
+            </label>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full bg-[#0d1713] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#3B82F6]/50"
+            >
+              <option value="" className="bg-[#0d1713] text-gray-400">Select Country / Region</option>
+              <option value="Kenya" className="bg-[#0d1713]">Kenya</option>
+              <option value="Zambia" className="bg-[#0d1713]">Zambia</option>
+            </select>
           </div>
 
           {error && <p className="text-xs text-rose-400">{error}</p>}

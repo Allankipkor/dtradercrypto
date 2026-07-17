@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Bitcoin, CreditCard, Copy, Check, Phone } from "lucide-react";
 import {
   PayPalScriptProvider,
   PayPalButtons,
 } from "@paypal/react-paypal-js";
 
-type Tab = "crypto" | "card" | "mpesa";
+type Tab = "crypto" | "card" | "mpesa" | "moneyunify";
 
 // Maps a PayPal orderId -> our own transactionId, bridging createOrder and
 // onApprove (PayPalOneTimePaymentButton only hands the orderId back to
@@ -42,6 +42,63 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
   const [message, setMessage] = useState("");
   const [cryptoResult, setCryptoResult] = useState<CryptoResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [userCountry, setUserCountry] = useState<string | null>(null);
+  const [pollingTxId, setPollingTxId] = useState<string | null>(null);
+
+  // Fetch user profile on open to determine country and phone
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/user/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user) {
+          setUserCountry(data.user.country);
+          if (data.user.phone) {
+            setPhone((prev) => prev || data.user.phone || "");
+          }
+        }
+      })
+      .catch((err) => console.error("Error loading profile for DepositModal:", err));
+  }, [open]);
+
+  // Poll status for pending mobile money transactions (M-Pesa / MoneyUnify)
+  useEffect(() => {
+    if (!pollingTxId) return;
+    let elapsed = 0;
+    
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/payments/status/${pollingTxId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status === "completed") {
+          onSuccess(data.balance);
+          setMessage(`Deposit of $${data.amount.toFixed(2)} confirmed!`);
+          setPollingTxId(null);
+          setLoading(false);
+        } else if (data.status === "failed") {
+          setError("Payment failed or was cancelled");
+          setPollingTxId(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error polling transaction status:", err);
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      elapsed += 3;
+      if (elapsed >= 60) {
+        setError("Payment checking timed out. If your payment went through, your balance will update shortly.");
+        setPollingTxId(null);
+        setLoading(false);
+      } else {
+        checkStatus();
+      }
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [pollingTxId, onSuccess]);
 
   const MIN_DEPOSIT = 1;
 
@@ -86,6 +143,9 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
         setMessage(data.message);
         if (data.status === "completed" && data.balance != null) {
           onSuccess(data.balance);
+        } else if (data.transactionId && data.status !== "completed") {
+          setPollingTxId(data.transactionId);
+          setLoading(true); // Keep loading state active during polling
         }
       }
     } catch (err) {
@@ -165,10 +225,15 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
     }
   };
 
-  const tabs: { id: Tab; label: string; icon: typeof Bitcoin | typeof CreditCard | typeof Phone }[] = [
+  const isZambian = userCountry === "Zambia" || userPhone?.startsWith("260") || userPhone?.startsWith("+260") || phone?.startsWith("260") || phone?.startsWith("+260") || phone?.startsWith("09") || phone?.startsWith("07");
+  const showMpesa = !userCountry || userCountry === "Kenya" || (userCountry !== "Zambia" && !isZambian);
+  const showZambiaMM = userCountry === "Zambia" || (isZambian && userCountry !== "Kenya");
+
+  const tabs: { id: Tab; label: string; icon: typeof Phone | typeof Bitcoin | typeof CreditCard }[] = [
     { id: "crypto", label: "USDT", icon: Bitcoin },
     { id: "card", label: "Card", icon: CreditCard },
-    { id: "mpesa", label: "M-Pesa", icon: Phone },
+    ...(showMpesa ? [{ id: "mpesa" as Tab, label: "M-Pesa", icon: Phone }] : []),
+    ...(showZambiaMM ? [{ id: "moneyunify" as Tab, label: "Zambia MM", icon: Phone }] : []),
   ];
 
   return (
@@ -240,6 +305,24 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
               />
               <p className="text-[10px] text-gray-500">
                 You will receive an STK PIN prompt on this phone number to complete the payment.
+              </p>
+            </div>
+          )}
+
+          {tab === "moneyunify" && (
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-gray-400 mb-1">
+                Zambian Phone Number (MTN/Airtel/Zamtel)
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. 0977123456"
+                className="w-full px-4 py-3 rounded-xl bg-[#13161e] border border-white/[0.07] text-white text-sm focus:outline-none focus:border-[#3B82F6]/50"
+              />
+              <p className="text-[10px] text-gray-500">
+                You will receive a USSD push PIN prompt on MTN, Airtel, or Zamtel to authorize the payment.
               </p>
             </div>
           )}
@@ -318,7 +401,7 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
           {!cryptoResult && tab !== "card" && (
             <button
               onClick={handleDeposit}
-              disabled={loading || amount < MIN_DEPOSIT || (tab === "mpesa" && !phone)}
+              disabled={loading || amount < MIN_DEPOSIT || ((tab === "mpesa" || tab === "moneyunify") && !phone)}
               className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-40"
               style={{ background: "#3B82F6" }}
             >

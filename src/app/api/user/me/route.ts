@@ -17,6 +17,7 @@ export async function GET() {
       email: true,
       name: true,
       phone: true,
+      country: true,
       balance: true,
       demoBalance: true,
       createdAt: true,
@@ -33,6 +34,7 @@ export async function GET() {
 const updateSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   phone: z.string().min(7).max(20).optional(),
+  country: z.string().max(80).optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -53,7 +55,7 @@ export async function PATCH(req: Request) {
     const user = await prisma.user.update({
       where: { id: session.user.id },
       data: parsed.data,
-      select: { id: true, email: true, name: true, phone: true },
+      select: { id: true, email: true, name: true, phone: true, country: true },
     });
 
     return NextResponse.json({ user });
