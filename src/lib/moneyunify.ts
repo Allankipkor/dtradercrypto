@@ -7,10 +7,13 @@ import axios from "axios";
 export function formatZambianPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("260") && digits.length === 12) {
-    return `0${digits.slice(3)}`;
+    return digits;
   }
-  if (digits.length === 9 && !digits.startsWith("0")) {
-    return `0${digits}`;
+  if (digits.startsWith("0") && digits.length === 10) {
+    return `260${digits.slice(1)}`;
+  }
+  if (digits.length === 9 && !digits.startsWith("260")) {
+    return `260${digits}`;
   }
   return digits;
 }
@@ -54,20 +57,19 @@ export async function initiateMoneyUnifyPayment(params: {
   }
 
   const formattedPhone = formatZambianPhone(params.phone);
-
-  const body = new URLSearchParams();
-  body.append("from_payer", formattedPhone);
-  body.append("amount", String(params.amountZmw));
-  body.append("auth_id", authId);
-
+ 
   try {
     const response = await axios.post<MoneyUnifyInitiateResponse>(
       "https://api.moneyunify.one/payments/request",
-      body.toString(),
+      {
+        from_payer: formattedPhone,
+        amount: params.amountZmw,
+        auth_id: authId,
+      },
       {
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/json",
         },
       }
     );
@@ -108,7 +110,7 @@ export async function initiateMoneyUnifyPayment(params: {
 /**
  * VERIFY MONEYUNIFY PAYMENT STATUS
  * POST https://api.moneyunify.one/payments/verify
- * Content-Type: application/x-www-form-urlencoded
+ * Content-Type: application/json
  */
 export async function verifyMoneyUnifyPayment(moneyUnifyTxId: string) {
   const authId = process.env.MONEYUNIFY_AUTH_ID;
@@ -116,17 +118,16 @@ export async function verifyMoneyUnifyPayment(moneyUnifyTxId: string) {
     throw new Error("MoneyUnify credentials not configured (MONEYUNIFY_AUTH_ID missing)");
   }
 
-  const body = new URLSearchParams();
-  body.append("auth_id", authId);
-  body.append("transaction_id", moneyUnifyTxId);
-
   const response = await axios.post<MoneyUnifyVerifyResponse>(
     "https://api.moneyunify.one/payments/verify",
-    body.toString(),
+    {
+      auth_id: authId,
+      transaction_id: moneyUnifyTxId,
+    },
     {
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
       validateStatus: () => true,
     }
