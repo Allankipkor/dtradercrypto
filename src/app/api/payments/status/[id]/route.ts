@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { checkStkStatus } from "@/lib/mpesa";
+import { verifyPaystackTransaction } from "@/lib/paystack";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -134,6 +135,93 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
 
+
+  if (transaction.method === "paystack" && transaction.metadata) {
+    let meta: { paystackReference?: string } = {};
+    try {
+      meta = JSON.parse(transaction.metadata);
+    } catch {
+      // malformed metadata
+    }
+
+    if (meta.paystackReference) {
+      if (meta.paystackReference.startsWith("MOCK_PSTK_")) {
+        return NextResponse.json({ status: "pending", amount: transaction.amount });
+      }
+
+      try {
+        const result = await verifyPaystackTransaction(meta.paystackReference);
+
+        console.log(`[paystack-status-poll] Poll status: txId=${transaction.id}, reference=${meta.paystackReference}, success=${result.success}, rawStatus=${result.status}`);
+
+        if (result.success && result.data) {
+          const remoteStatus = result.status?.toLowerCase().trim();
+
+          const successValues = ["success", "successful", "completed", "complete", "paid", "confirmed"];
+          const failureValues = ["failed", "failure", "cancelled", "canceled", "rejected", "timeout", "expired", "error"];
+
+          const succeeded = remoteStatus === "success" || successValues.includes(remoteStatus);
+
+          if (succeeded) {
+            const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
+
+            await prisma.$transaction([
+              prisma.transaction.update({
+                where: { id: transaction.id },
+                data: {
+                  status: "completed",
+                  metadata: JSON.stringify({
+                    ...existingMeta,
+                    resolvedVia: "poll",
+                    rawStatus: remoteStatus,
+                    paystackId: result.data.id,
+                  }),
+                },
+              }),
+              prisma.user.update({
+                where: { id: transaction.userId },
+                data: { balance: { increment: transaction.amount } },
+              }),
+            ]);
+
+            const user = await prisma.user.findUnique({
+              where: { id: session.user.id },
+              select: { balance: true },
+            });
+
+            console.log(`[paystack-status-poll] Confirmed: txId=${transaction.id}, amount=${transaction.amount}, balance=${user?.balance}`);
+
+            return NextResponse.json({
+              status: "completed",
+              amount: transaction.amount,
+              balance: user?.balance,
+            });
+          }
+
+          if (remoteStatus && failureValues.includes(remoteStatus)) {
+            const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
+            await prisma.transaction.update({
+              where: { id: transaction.id },
+              data: {
+                status: "failed",
+                metadata: JSON.stringify({
+                  ...existingMeta,
+                  resolvedVia: "poll",
+                  rawStatus: remoteStatus,
+                }),
+              },
+            });
+
+            console.log(`[paystack-status-poll] Failed: txId=${transaction.id}, remoteStatus=${remoteStatus}`);
+
+            return NextResponse.json({ status: "failed", amount: transaction.amount });
+          }
+        }
+      } catch (err) {
+        console.error("verifyPaystackTransaction error:", err);
+      }
+    }
+  }
 
   return NextResponse.json({ status: "pending", amount: transaction.amount });
 }

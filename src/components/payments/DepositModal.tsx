@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Bitcoin, CreditCard, Copy, Check, Phone } from "lucide-react";
+import { X, Bitcoin, CreditCard, Copy, Check, Phone, Wallet } from "lucide-react";
 import {
   PayPalScriptProvider,
   PayPalButtons,
 } from "@paypal/react-paypal-js";
 
-type Tab = "crypto" | "card" | "mpesa";
+type Tab = "crypto" | "card" | "mpesa" | "paystack";
 
 // Maps a PayPal orderId -> our own transactionId, bridging createOrder and
 // onApprove (PayPalOneTimePaymentButton only hands the orderId back to
@@ -138,7 +138,16 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
           setMessage(data.message);
         }
       } else {
-        setMessage(data.message);
+        if (tab === "paystack" && data.authorizationUrl) {
+        window.open(data.authorizationUrl, "_blank");
+        if (data.transactionId) {
+          setPollingTxId(data.transactionId);
+          setLoading(true);
+        }
+        return;
+      }
+
+      setMessage(data.message);
         if (data.status === "completed" && data.balance != null) {
           onSuccess(data.balance);
         } else if (data.transactionId && data.status !== "completed") {
@@ -223,10 +232,11 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
     }
   };
 
-  const tabs: { id: Tab; label: string; icon: typeof Bitcoin | typeof CreditCard | typeof Phone }[] = [
+  const tabs: { id: Tab; label: string; icon: typeof Bitcoin | typeof CreditCard | typeof Phone | typeof Wallet }[] = [
     { id: "crypto", label: "USDT", icon: Bitcoin },
     { id: "card", label: "Card", icon: CreditCard },
     { id: "mpesa", label: "M-Pesa", icon: Phone },
+    { id: "paystack", label: "Paystack", icon: Wallet },
   ];
 
   return (
@@ -298,6 +308,20 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
               />
               <p className="text-[10px] text-gray-500">
                 You will receive an STK PIN prompt on this phone number to complete the payment.
+              </p>
+            </div>
+          )}
+
+          {tab === "paystack" && (
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-gray-400 mb-1">
+                Pay via Paystack
+              </label>
+              <p className="text-xs text-gray-300">
+                You will be redirected to Paystack to complete your deposit securely using cards, mobile money, or bank transfers.
+              </p>
+              <p className="text-[10px] text-gray-500">
+                A new secure browser tab will open to handle your checkout safely. Once paid, return here to see your updated balance.
               </p>
             </div>
           )}

@@ -9,10 +9,14 @@ import {
   isAutoConfirmEnabled,
   isCryptoConfigured,
 } from "@/lib/crypto";
-
+import {
+  initializePaystackTransaction,
+  isPaystackConfigured,
+  isPaystackAutoConfirmEnabled,
+} from "@/lib/paystack";
 
 const schema = z.object({
-  method: z.enum(["mpesa", "crypto", "card"]),
+  method: z.enum(["mpesa", "crypto", "card", "paystack"]),
   amount: z.number().min(1).max(10000),
   phone: z.string().optional(),
 });
@@ -136,6 +140,103 @@ export async function POST(req: Request) {
           message: stk.CustomerMessage,
           amountKes,
           checkoutRequestId: stk.checkoutRequestId,
+        });
+      } catch (err) {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: "failed" },
+        });
+        throw err;
+      }
+    }
+
+    if (method === "paystack") {
+      if (!isPaystackConfigured() && !isPaystackAutoConfirmEnabled()) {
+        return NextResponse.json(
+          { error: "Paystack is not configured. Add PAYSTACK_SECRET_KEY to .env" },
+          { status: 503 }
+        );
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { email: true },
+      });
+
+      if (!user?.email) {
+        return NextResponse.json(
+          { error: "User email is required for Paystack checkout" },
+          { status: 400 }
+        );
+      }
+
+      const transaction = await prisma.transaction.create({
+        data: {
+          userId: session.user.id,
+          type: "deposit",
+          method: "paystack",
+          amount,
+          currency: "USD",
+          status: "pending",
+          externalRef: reference,
+          metadata: JSON.stringify({ paystackReference: reference }),
+        },
+      });
+
+      if (isPaystackAutoConfirmEnabled()) {
+        await prisma.$transaction([
+          prisma.transaction.update({
+            where: { id: transaction.id },
+            data: {
+              status: "completed",
+              metadata: JSON.stringify({
+                paystackReference: `MOCK_PSTK_${reference}`,
+                autoConfirmed: true,
+              }),
+            },
+          }),
+          prisma.user.update({
+            where: { id: session.user.id },
+            data: { balance: { increment: amount } },
+          }),
+        ]);
+
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { balance: true },
+        });
+
+        return NextResponse.json({
+          transactionId: transaction.id,
+          method: "paystack",
+          message: `Deposit of $${amount} mock auto-confirmed (dev mode)!`,
+          status: "completed",
+          balance: updatedUser?.balance,
+          authorizationUrl: `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/trade?mock_paystack_success=1`,
+        });
+      }
+
+      try {
+        const initRes = await initializePaystackTransaction({
+          email: user.email,
+          amountUsd: amount,
+          reference: reference,
+        });
+
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            metadata: JSON.stringify({
+              paystackReference: initRes.reference,
+            }),
+          },
+        });
+
+        return NextResponse.json({
+          transactionId: transaction.id,
+          method: "paystack",
+          authorizationUrl: initRes.authorizationUrl,
+          reference: initRes.reference,
         });
       } catch (err) {
         await prisma.transaction.update({
