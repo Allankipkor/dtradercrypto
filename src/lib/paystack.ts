@@ -48,6 +48,10 @@ export function convertUsdToPaystackAmount(usd: number): { amount: number; curre
     const rate = parseFloat(process.env.USD_TO_KES ?? "130");
     return { amount: Math.round(usd * rate * 100), currency: "KES" };
   }
+  if (currency === "ZAR") {
+    const rate = parseFloat(process.env.USD_TO_ZAR ?? "18");
+    return { amount: Math.round(usd * rate * 100), currency: "ZAR" };
+  }
   // Default fallback to USD subunits (cents)
   return { amount: Math.round(usd * 100), currency: "USD" };
 }
