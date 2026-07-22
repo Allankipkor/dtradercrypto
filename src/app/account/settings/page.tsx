@@ -154,7 +154,6 @@ export default function AccountSettingsPage() {
             >
               <option value="" className="bg-[#0d1713] text-gray-400">Select Country / Region</option>
               <option value="Kenya" className="bg-[#0d1713]">Kenya</option>
-              <option value="Zambia" className="bg-[#0d1713]">Zambia</option>
             </select>
           </div>
 

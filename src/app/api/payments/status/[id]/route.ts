@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { checkStkStatus } from "@/lib/mpesa";
-import { verifyMoneyUnifyPayment } from "@/lib/moneyunify";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -134,91 +133,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  if (transaction.method === "moneyunify" && transaction.metadata) {
-    let meta: { moneyUnifyTxId?: string } = {};
-    try {
-      meta = JSON.parse(transaction.metadata);
-    } catch {
-      // malformed metadata
-    }
 
-    if (meta.moneyUnifyTxId) {
-      if (meta.moneyUnifyTxId.startsWith("MOCK_MU_")) {
-        return NextResponse.json({ status: "pending", amount: transaction.amount });
-      }
-
-      try {
-        const result = await verifyMoneyUnifyPayment(meta.moneyUnifyTxId);
-
-        console.log(`[moneyunify-status-poll] Poll status: txId=${transaction.id}, remoteTxId=${meta.moneyUnifyTxId}, success=${result.success}, rawStatus=${result.data?.status}`);
-
-        if (result.success && result.data) {
-          const remoteStatus = result.data.status?.toLowerCase().trim();
-
-          const successValues = ["successful", "success", "completed", "complete", "paid", "confirmed"];
-          const failureValues = ["failed", "failure", "cancelled", "canceled", "rejected", "timeout", "expired", "error"];
-
-          const succeeded = Boolean(remoteStatus && successValues.includes(remoteStatus));
-
-          if (succeeded) {
-            const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
-
-            await prisma.$transaction([
-              prisma.transaction.update({
-                where: { id: transaction.id },
-                data: {
-                  status: "completed",
-                  metadata: JSON.stringify({
-                    ...existingMeta,
-                    resolvedVia: "poll",
-                    rawStatus: remoteStatus,
-                  }),
-                },
-              }),
-              prisma.user.update({
-                where: { id: transaction.userId },
-                data: { balance: { increment: transaction.amount } },
-              }),
-            ]);
-
-            const user = await prisma.user.findUnique({
-              where: { id: session.user.id },
-              select: { balance: true },
-            });
-
-            console.log(`[moneyunify-status-poll] Confirmed: txId=${transaction.id}, amount=${transaction.amount}, balance=${user?.balance}`);
-
-            return NextResponse.json({
-              status: "completed",
-              amount: transaction.amount,
-              balance: user?.balance,
-            });
-          }
-
-          if (remoteStatus && failureValues.includes(remoteStatus)) {
-            const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
-            await prisma.transaction.update({
-              where: { id: transaction.id },
-              data: {
-                status: "failed",
-                metadata: JSON.stringify({
-                  ...existingMeta,
-                  resolvedVia: "poll",
-                  rawStatus: remoteStatus,
-                }),
-              },
-            });
-
-            console.log(`[moneyunify-status-poll] Failed: txId=${transaction.id}, remoteStatus=${remoteStatus}`);
-
-            return NextResponse.json({ status: "failed", amount: transaction.amount });
-          }
-        }
-      } catch (err) {
-        console.error("verifyMoneyUnifyPayment error:", err);
-      }
-    }
-  }
 
   return NextResponse.json({ status: "pending", amount: transaction.amount });
 }

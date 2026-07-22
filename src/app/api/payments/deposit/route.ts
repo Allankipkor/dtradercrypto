@@ -9,15 +9,10 @@ import {
   isAutoConfirmEnabled,
   isCryptoConfigured,
 } from "@/lib/crypto";
-import {
-  initiateMoneyUnifyPayment,
-  isMoneyUnifyConfigured,
-  isMoneyUnifyAutoConfirmEnabled,
-  usdToZmw,
-} from "@/lib/moneyunify";
+
 
 const schema = z.object({
-  method: z.enum(["mpesa", "crypto", "card", "moneyunify"]),
+  method: z.enum(["mpesa", "crypto", "card"]),
   amount: z.number().min(1).max(10000),
   phone: z.string().optional(),
 });
@@ -150,115 +145,7 @@ export async function POST(req: Request) {
         throw err;
       }
     }
- 
-    if (method === "moneyunify") {
-      if (!isMoneyUnifyConfigured() && !isMoneyUnifyAutoConfirmEnabled()) {
-        return NextResponse.json(
-          { error: "MoneyUnify not configured. Add MONEYUNIFY_AUTH_ID to .env" },
-          { status: 503 }
-        );
-      }
 
-      const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-      const muPhone = phone ?? user?.phone;
-      if (!muPhone) {
-        return NextResponse.json({ error: "Phone number required for MoneyUnify" }, { status: 400 });
-      }
-
-      const amountZmw = usdToZmw(amount);
-      if (amountZmw < 1) {
-        return NextResponse.json(
-          { error: "Amount is too small to convert to a valid ZMW charge" },
-          { status: 400 }
-        );
-      }
-
-      const transaction = await prisma.transaction.create({
-        data: {
-          userId: session.user.id,
-          type: "deposit",
-          method: "moneyunify",
-          amount,
-          currency: "USD",
-          status: "pending",
-          externalRef: reference,
-          metadata: JSON.stringify({ amountZmw, phone: muPhone }),
-        },
-      });
-
-      if (isMoneyUnifyAutoConfirmEnabled()) {
-        await prisma.$transaction([
-          prisma.transaction.update({
-            where: { id: transaction.id },
-            data: {
-              status: "completed",
-              metadata: JSON.stringify({
-                amountZmw,
-                phone: muPhone,
-                autoConfirmed: true,
-                moneyUnifyTxId: `MOCK_MU_${reference}`,
-              }),
-            },
-          }),
-          prisma.user.update({
-            where: { id: session.user.id },
-            data: { balance: { increment: amount } },
-          }),
-        ]);
-
-        const updatedUser = await prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { balance: true },
-        });
-
-        console.log(`[moneyunify-deposit] Auto-confirmed mock transaction in dev: txId=${transaction.id}, amount=${amount}`);
-
-        return NextResponse.json({
-          transactionId: transaction.id,
-          method: "moneyunify",
-          message: `Deposit of $${amount} mock auto-confirmed (dev mode)!`,
-          amountZmw,
-          moneyUnifyTxId: `MOCK_MU_${reference}`,
-          status: "completed",
-          balance: updatedUser?.balance,
-        });
-      }
-
-      try {
-        const mu = await initiateMoneyUnifyPayment({
-          phone: muPhone,
-          amountZmw,
-        });
-
-        console.log(`[moneyunify-deposit] Initiated: userId=${session.user.id}, txId=${transaction.id}, amountUsd=${amount}, amountZmw=${amountZmw}, phone=${muPhone}, remoteTxId=${mu.transactionId}`);
-
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: {
-            metadata: JSON.stringify({
-              amountZmw,
-              phone: muPhone,
-              moneyUnifyTxId: mu.transactionId,
-            }),
-          },
-        });
-
-        return NextResponse.json({
-          transactionId: transaction.id,
-          method: "moneyunify",
-          message: mu.message || "USSD payment prompt sent to your phone",
-          amountZmw,
-          moneyUnifyTxId: mu.transactionId,
-        });
-      } catch (err) {
-        console.error(`[moneyunify-deposit] Initiation failed: txId=${transaction.id}`, err);
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: { status: "failed" },
-        });
-        throw err;
-      }
-    }
 
     if (method === "crypto") {
       const address = getUsdtDepositAddress();
